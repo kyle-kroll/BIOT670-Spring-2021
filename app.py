@@ -2,9 +2,7 @@
     BIOT670 Capstone Project - Quad Viewer
     plotting functions
 '''
-import json
-import math
-
+import os
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -14,12 +12,14 @@ import plotly.graph_objects as go
 from dash.dependencies import Input, Output
 
 app = dash.Dash(__name__)
+server = app.server
 styles = {
     'pre': {
         'border': 'thin lightgrey solid',
         'overflowX': 'scroll'
     }
 }
+
 xpos = 'DB_CORO_MEAN'
 ypos = 'HET_CORO_MEAN'
 xneg = 'KOHET_CORO_MEAN'
@@ -34,18 +34,18 @@ fig.add_scatter(x=df[xpos],
                 mode='markers',
                 marker_color='blue',
                 text=df['Accession_Number'])
-fig.add_scatter(x=df[xpos].apply(lambda x: x * -1),
+fig.add_scatter(x=df[xneg].apply(lambda x: x * -1),
                 y=df[ypos],
                 mode='markers',
                 marker_color='blue',
                 text=df['Accession_Number'])
-fig.add_scatter(x=df[xpos].apply(lambda x: x * -1),
-                y=df[ypos].apply(lambda x: x * -1),
+fig.add_scatter(x=df[xneg].apply(lambda x: x * -1),
+                y=df[yneg].apply(lambda x: x * -1),
                 mode='markers',
                 marker_color='blue',
                 text=df['Accession_Number'])
 fig.add_scatter(x=df[xpos],
-                y=df[ypos].apply(lambda x: x * -1),
+                y=df[yneg].apply(lambda x: x * -1),
                 mode='markers',
                 marker_color='blue',
                 text=df['Accession_Number'])
@@ -85,4 +85,4 @@ def display_hover_data(hoverData):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)
