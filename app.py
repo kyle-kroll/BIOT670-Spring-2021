@@ -12,11 +12,12 @@ import io
 import pandas as pd
 import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
+import math
 
 external_stylesheets = [dbc.themes.BOOTSTRAP]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
-app.config['suppress_callback_exceptions'] = True
+app.config.suppress_callback_exceptions = True
 
 styles = {
     'pre': {
@@ -32,64 +33,77 @@ xneg = 'KOHET_CORO_MEAN'
 yneg = 'KOKO_CORO_MEAN'
 '''
 df = pd.DataFrame()
+def serve_layout():
+    layout = html.Div([
+        # The following dbc.Row contains the 2 column layout where settings are on the left
+        # and the plot is the column to the right
 
-app.layout = html.Div([
-    # The following dbc.Row contains the 2 column layout where settings are on the left
-    # and the plot is the column to the right
+        dbc.Row([
+            dbc.Col([
+                html.Div(className='six columns', children=[
+                    dcc.Upload(
+                        id='upload-data',
+                        children=html.Div([
+                            'Drag and Drop or ',
+                            html.A('Select Files')
+                        ]),
+                        style={
+                            'width': '100%',
+                            'height': '60px',
+                            'lineHeight': '60px',
+                            'borderWidth': '1px',
+                            'borderStyle': 'dashed',
+                            'borderRadius': '5px',
+                            'textAlign': 'center',
+                            'margin': '10px'
+                        },
+                        # Allow multiple files to be uploaded
+                        multiple=False
+                    ),
+                    html.Div(id='output-data-upload'),
+                    html.Div(id='dropdown-items'),
+                    html.Label('Plot Axis Scale'),
+                    html.Div(children=[
+                        dcc.RadioItems(
+                            id='scale-radio',
+                            options=[
+                                {'label': 'Linear', 'value': 'lin'},
+                                {'label': 'Log10', 'value': 'log'}
+                            ],
+                            value='lin',
+                            labelStyle={'display': 'block'}
+                        )]),
+                ])
+            ], width={"size": 2}
 
-    dbc.Row([
-        dbc.Col([
-            html.Div(className='six columns', children=[
-                dcc.Upload(
-                    id='upload-data',
-                    children=html.Div([
-                        'Drag and Drop or ',
-                        html.A('Select Files')
-                    ]),
-                    style={
-                        'width': '100%',
-                        'height': '60px',
-                        'lineHeight': '60px',
-                        'borderWidth': '1px',
-                        'borderStyle': 'dashed',
-                        'borderRadius': '5px',
-                        'textAlign': 'center',
-                        'margin': '10px'
-                    },
-                    # Allow multiple files to be uploaded
-                    multiple=False
-                ),
-                html.Div(id='output-data-upload'),
-                html.Div(id='dropdown-items')
-            ])
-        ], width={"size": 2}
-
-        ),
-        # Figure plot
-        dbc.Col(
-            html.Div(className='six columns', children=[
-                dcc.Graph(
-                    id='basic-interactions',
-                    clear_on_unhover=True
-                )
-            ])
-        )
-        # Second row is for the hover data which only has a single, centered column
-    ]),
-    dbc.Row([
-        dbc.Col([
-            html.Div([
-                dcc.Markdown("""
-                                **Hover Data**
-                        
-                                Mouse over values in the graph.
-                            """),
-                html.Pre(id='hover-data')
-            ])
-        ], width={"size": 6, "offset": 3})
+            ),
+            # Figure plot
+            dbc.Col(
+                html.Div(className='six columns', children=[
+                    dcc.Graph(
+                        id='basic-interactions',
+                        clear_on_unhover=True
+                    )
+                ])
+            )
+            # Second row is for the hover data which only has a single, centered column
+        ]),
+        dbc.Row([
+            dbc.Col([
+                html.Div([
+                    dcc.Markdown("""
+                                    **Hover Data**
+                            
+                                    Mouse over values in the graph.
+                                """),
+                    html.Pre(id='hover-data')
+                ])
+            ], width={"size": 6, "offset": 3})
+        ])
     ])
-])
+    return layout
 
+app.layout = serve_layout
 
 # Parse uploaded data function
 def parse_contents(contents, filename, date):
@@ -162,35 +176,40 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
     [Input('xpos-dropdown', 'value'),
      Input('ypos-dropdown', 'value'),
      Input('xneg-dropdown', 'value'),
-     Input('yneg-dropdown', 'value')],
-    suppress_callback_exceptions=True)
-def create_figure(xpos, ypos, xneg, yneg):
+     Input('yneg-dropdown', 'value'),
+     Input('scale-radio', 'value'),
+     State('basic-interactions', 'figure')])
+def create_figure(xpos, ypos, xneg, yneg, scale, state):
     global df
     fig = go.Figure()
     if None not in [xpos, ypos]:
-        fig.add_scatter(x=df[xpos],
-                        y=df[ypos],
+        fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x+1)),
+                        y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x+1)),
                         mode='markers',
                         marker_color='blue',
-                        text=df['Accession_Number'])
+                        text=df['Accession_Number'],
+                        name="Quadrant 1")
     if None not in [xneg, ypos]:
-        fig.add_scatter(x=df[xneg].apply(lambda x: x * -1),
-                        y=df[ypos],
+        fig.add_scatter(x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x+1) * -1),
+                        y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x+1)),
                         mode='markers',
                         marker_color='blue',
-                        text=df['Accession_Number'])
+                        text=df['Accession_Number'],
+                        name="Quadrant 2")
     if None not in [xneg, yneg]:
-        fig.add_scatter(x=df[xneg].apply(lambda x: x * -1),
-                        y=df[yneg].apply(lambda x: x * -1),
+        fig.add_scatter(x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x+1) * -1),
+                        y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(lambda x: math.log10(x+1) * -1),
                         mode='markers',
                         marker_color='blue',
-                        text=df['Accession_Number'])
+                        text=df['Accession_Number'],
+                        name="Quadrant 3")
     if None not in [xpos, yneg]:
-        fig.add_scatter(x=df[xpos],
-                        y=df[yneg].apply(lambda x: x * -1),
+        fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x+1)),
+                        y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(lambda x: math.log10(x+1) * -1),
                         mode='markers',
                         marker_color='blue',
-                        text=df['Accession_Number'])
+                        text=df['Accession_Number'],
+                        name="Quadrant 4")
     fig.update_layout(showlegend=False)
     return fig
 
@@ -201,9 +220,10 @@ def create_figure(xpos, ypos, xneg, yneg):
      Input('xpos-dropdown', 'value'),
      Input('ypos-dropdown', 'value'),
      Input('xneg-dropdown', 'value'),
-     Input('yneg-dropdown', 'value')
-     ], suppress_callback_exceptions=True)
-def display_hover_data(hoverData, xpos, ypos, xneg, yneg):
+     Input('yneg-dropdown', 'value'),
+     State('xpos-dropdown', 'value')]
+)
+def display_hover_data(hoverData, xpos, ypos, xneg, yneg, state):
     if hoverData is not None:
         global df
         name = hoverData['points'][0]['text']
@@ -217,9 +237,9 @@ def display_hover_data(hoverData, xpos, ypos, xneg, yneg):
             output_dict[xneg] = df.loc[df['Accession_Number'] == name, xneg].values[0]
         if yneg is not None:
             output_dict[yneg] = df.loc[df['Accession_Number'] == name, yneg].values[0]
-        blah = f'Protein:\t{name}\n' + ''.join(f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
+        blah = f'Protein:\t{name}\nPathways:\t{path}\n' + ''.join(f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
         return blah
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
