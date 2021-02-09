@@ -1,0 +1,11 @@
+name: quadviewer #Environment name
+dependencies:
+  - python=3.9
+  - pip:
+    - dash
+    - dash-renderer
+    - dash-core-components
+    - dash-html-components
+    - plotly
+    - gunicorn # for app deployment
+    - pandas
