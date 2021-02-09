@@ -19,44 +19,61 @@ styles = {
         'overflowX': 'scroll'
     }
 }
-
+choices = ['DB_CORO_MEAN', 'HET_CORO_MEAN', 'KOHET_CORO_MEAN', 'KOKO_CORO_MEAN']
+'''
 xpos = 'DB_CORO_MEAN'
 ypos = 'HET_CORO_MEAN'
 xneg = 'KOHET_CORO_MEAN'
 yneg = 'KOKO_CORO_MEAN'
+'''
 df = pd.read_csv('coro_data.tsv', sep='\t')
-df[xpos] = df[xpos].apply(lambda x: x)
-df[ypos] = df[ypos].apply(lambda x: x)
 
-fig = go.Figure()
-fig.add_scatter(x=df[xpos],
-                y=df[ypos],
-                mode='markers',
-                marker_color='blue',
-                text=df['Accession_Number'])
-fig.add_scatter(x=df[xneg].apply(lambda x: x * -1),
-                y=df[ypos],
-                mode='markers',
-                marker_color='blue',
-                text=df['Accession_Number'])
-fig.add_scatter(x=df[xneg].apply(lambda x: x * -1),
-                y=df[yneg].apply(lambda x: x * -1),
-                mode='markers',
-                marker_color='blue',
-                text=df['Accession_Number'])
-fig.add_scatter(x=df[xpos],
-                y=df[yneg].apply(lambda x: x * -1),
-                mode='markers',
-                marker_color='blue',
-                text=df['Accession_Number'])
-fig.update_layout(height=500, showlegend=False)
 app.layout = html.Div([
     dcc.Graph(
         id='basic-interactions',
-        figure=fig,
+        #figure=fig,
         clear_on_unhover=True
     ),
+    html.Div(
+        className="row", children=[
 
+            html.Div(className='six columns', children=[
+                html.Label('Positive X'),
+                dcc.Dropdown(
+                    id="xpos-dropdown",
+                    options=[{'label': name, 'value': name} for name in choices],
+                    value=choices[0],
+                    clearable=False,
+                    searchable=False,
+                )], style=dict(width='25%')),
+            html.Div(className='six columns', children=[
+                html.Label('Positive Y'),
+                dcc.Dropdown(
+                    id="ypos-dropdown",
+                    options=[{'label': name, 'value': name} for name in choices],
+                    value=choices[0],
+                    clearable=False,
+                    searchable=False,
+                )], style=dict(width='25%')),
+            html.Div(className='six columns', children=[
+                html.Label('Negative X'),
+                dcc.Dropdown(
+                    id="xneg-dropdown",
+                    options=[{'label': name, 'value': name} for name in choices],
+                    value=choices[0],
+                    clearable=False,
+                    searchable=False,
+                )], style=dict(width='25%')),
+            html.Div(className='six columns', children=[
+                html.Label('Negative Y'),
+                dcc.Dropdown(
+                    id="yneg-dropdown",
+                    options=[{'label': name, 'value': name} for name in choices],
+                    value=choices[0],
+                    clearable=False,
+                    searchable=False,
+                )], style=dict(width='25%'))
+        ], style=dict(display='flex')),
     html.Div(className='row', children=[
         html.Div([
             dcc.Markdown("""
@@ -69,11 +86,47 @@ app.layout = html.Div([
     ])
 ])
 
+@app.callback(
+Output('basic-interactions', 'figure'),
+[Input('xpos-dropdown', 'value'),
+ Input('ypos-dropdown', 'value'),
+ Input('xneg-dropdown', 'value'),
+ Input('yneg-dropdown', 'value')])
+def create_figure(xpos, ypos, xneg, yneg):
+    dff = df
+    fig = go.Figure()
+    fig.add_scatter(x=dff[xpos],
+                    y=dff[ypos],
+                    mode='markers',
+                    marker_color='blue',
+                    text=dff['Accession_Number'])
+    fig.add_scatter(x=dff[xneg].apply(lambda x: x * -1),
+                    y=dff[ypos],
+                    mode='markers',
+                    marker_color='blue',
+                    text=dff['Accession_Number'])
+    fig.add_scatter(x=dff[xneg].apply(lambda x: x * -1),
+                    y=dff[yneg].apply(lambda x: x * -1),
+                    mode='markers',
+                    marker_color='blue',
+                    text=dff['Accession_Number'])
+    fig.add_scatter(x=dff[xpos],
+                    y=dff[yneg].apply(lambda x: x * -1),
+                    mode='markers',
+                    marker_color='blue',
+                    text=dff['Accession_Number'])
+    fig.update_layout(height=500, showlegend=False)
+    return fig
 
 @app.callback(
     Output('hover-data', 'children'),
-    Input('basic-interactions', 'hoverData'))
-def display_hover_data(hoverData):
+    [Input('basic-interactions', 'hoverData'),
+     Input('xpos-dropdown', 'value'),
+     Input('ypos-dropdown', 'value'),
+     Input('xneg-dropdown', 'value'),
+     Input('yneg-dropdown', 'value')
+     ])
+def display_hover_data(hoverData, xpos, ypos, xneg, yneg):
     name = hoverData['points'][0]['text']
     path = df.loc[df['Accession_Number'] == name, 'All_Pathways'].values[0]
     xpos_val = df.loc[df['Accession_Number'] == name, xpos].values[0]
@@ -85,4 +138,4 @@ def display_hover_data(hoverData):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
