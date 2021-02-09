@@ -127,14 +127,15 @@ def create_figure(xpos, ypos, xneg, yneg):
      Input('yneg-dropdown', 'value')
      ])
 def display_hover_data(hoverData, xpos, ypos, xneg, yneg):
-    name = hoverData['points'][0]['text']
-    path = df.loc[df['Accession_Number'] == name, 'All_Pathways'].values[0]
-    xpos_val = df.loc[df['Accession_Number'] == name, xpos].values[0]
-    ypos_val = df.loc[df['Accession_Number'] == name, ypos].values[0]
-    xneg_val = df.loc[df['Accession_Number'] == name, xneg].values[0]
-    yneg_val = df.loc[df['Accession_Number'] == name, yneg].values[0]
-    blah = f'Protein:\t{name}\nPathways:\t{path}\n{xpos}:\t{xpos_val}\n{ypos}:\t{ypos_val}\n{xneg}:\t{xneg_val}\n{yneg}:\t{yneg_val}'
-    return blah
+    if hoverData is not None:
+        name = hoverData['points'][0]['text']
+        path = df.loc[df['Accession_Number'] == name, 'All_Pathways'].values[0]
+        xpos_val = df.loc[df['Accession_Number'] == name, xpos].values[0]
+        ypos_val = df.loc[df['Accession_Number'] == name, ypos].values[0]
+        xneg_val = df.loc[df['Accession_Number'] == name, xneg].values[0]
+        yneg_val = df.loc[df['Accession_Number'] == name, yneg].values[0]
+        blah = f'Protein:\t{name}\nPathways:\t{path}\n{xpos}:\t{xpos_val}\n{ypos}:\t{ypos_val}\n{xneg}:\t{xneg_val}\n{yneg}:\t{yneg_val}'
+        return blah
 
 
 if __name__ == '__main__':
