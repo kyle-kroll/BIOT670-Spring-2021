@@ -25,14 +25,11 @@ styles = {
         'overflowX': 'scroll'
     }
 }
-choices = []
-'''
-xpos = 'DB_CORO_MEAN'
-ypos = 'HET_CORO_MEAN'
-xneg = 'KOHET_CORO_MEAN'
-yneg = 'KOKO_CORO_MEAN'
-'''
+
+# Declare a global dataframe to hold the uploaded information
 df = pd.DataFrame()
+
+
 def serve_layout():
     layout = html.Div([
         # The following dbc.Row contains the 2 column layout where settings are on the left
@@ -103,7 +100,9 @@ def serve_layout():
     ])
     return layout
 
+
 app.layout = serve_layout
+
 
 # Parse uploaded data function
 def parse_contents(contents, filename, date):
@@ -183,29 +182,32 @@ def create_figure(xpos, ypos, xneg, yneg, scale, state):
     global df
     fig = go.Figure()
     if None not in [xpos, ypos]:
-        fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x+1)),
-                        y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x+1)),
+        fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
+                        y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
                         mode='markers',
                         marker_color='blue',
                         text=df['Accession_Number'],
                         name="Quadrant 1")
     if None not in [xneg, ypos]:
-        fig.add_scatter(x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x+1) * -1),
-                        y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x+1)),
-                        mode='markers',
-                        marker_color='blue',
-                        text=df['Accession_Number'],
-                        name="Quadrant 2")
+        fig.add_scatter(
+            x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x + 1) * -1),
+            y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
+            mode='markers',
+            marker_color='blue',
+            text=df['Accession_Number'],
+            name="Quadrant 2")
     if None not in [xneg, yneg]:
-        fig.add_scatter(x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x+1) * -1),
-                        y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(lambda x: math.log10(x+1) * -1),
-                        mode='markers',
-                        marker_color='blue',
-                        text=df['Accession_Number'],
-                        name="Quadrant 3")
+        fig.add_scatter(
+            x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x + 1) * -1),
+            y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(lambda x: math.log10(x + 1) * -1),
+            mode='markers',
+            marker_color='blue',
+            text=df['Accession_Number'],
+            name="Quadrant 3")
     if None not in [xpos, yneg]:
-        fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x+1)),
-                        y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(lambda x: math.log10(x+1) * -1),
+        fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
+                        y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(
+                            lambda x: math.log10(x + 1) * -1),
                         mode='markers',
                         marker_color='blue',
                         text=df['Accession_Number'],
@@ -237,7 +239,8 @@ def display_hover_data(hoverData, xpos, ypos, xneg, yneg, state):
             output_dict[xneg] = df.loc[df['Accession_Number'] == name, xneg].values[0]
         if yneg is not None:
             output_dict[yneg] = df.loc[df['Accession_Number'] == name, yneg].values[0]
-        blah = f'Protein:\t{name}\nPathways:\t{path}\n' + ''.join(f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
+        blah = f'Protein:\t{name}\nPathways:\t{path}\n' + ''.join(
+            f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
         return blah
 
 
