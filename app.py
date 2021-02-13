@@ -13,6 +13,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
 import math
+import plotly.express as px
 
 external_stylesheets = [dbc.themes.BOOTSTRAP]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -87,8 +88,10 @@ def serve_layout():
                                 'height': 800,
                                 'width': 800,
                                 'scale': 1  # Multiply title/legend/axis/canvas sizes by this factor
-                            }
-                        }
+                            },
+
+                        },
+
                     )
                 ])
             )
@@ -111,6 +114,9 @@ def serve_layout():
 
 
 app.layout = serve_layout
+
+# Create pie chart for every row in data frame
+colour_column = 'All_Pathways'
 
 
 # Parse uploaded data function
@@ -140,6 +146,7 @@ def parse_contents(contents, filename, date):
 
 
 # Callback for handling uploaded data
+# After data uploaded it is parsed into global df item and then populates the columns for dropdowns 
 @app.callback(Output('dropdown-items', 'children'),
               Input('upload-data', 'contents'),
               State('upload-data', 'filename'),
@@ -148,37 +155,52 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
     if list_of_contents is not None:
         parse_contents(list_of_contents, list_of_names, list_of_dates)
     return [
+        html.Label('Row names'),
+        dcc.Dropdown(
+            id='name-dropdown',
+            options=[{'label': name, 'value': name} for name in df.columns],
+            clearable=False,
+            searchable=True
+        ),
+        html.Label('Color by:'),
+        dcc.Dropdown(
+            id='colour-dropdown',
+            options=[{'label': name, 'value': name} for name in df.columns],
+            clearable=False,
+            searchable=True
+        ),
         html.Label('Positive X'),
         dcc.Dropdown(
             id="xpos-dropdown",
             options=[{'label': name, 'value': name} for name in df.columns],
             clearable=False,
-            searchable=False,
+            searchable=True,
         ),
         html.Label('Positive Y'),
         dcc.Dropdown(
             id="ypos-dropdown",
             options=[{'label': name, 'value': name} for name in df.columns],
             clearable=False,
-            searchable=False,
+            searchable=True,
         ),
         html.Label('Negative X'),
         dcc.Dropdown(
             id="xneg-dropdown",
             options=[{'label': name, 'value': name} for name in df.columns],
             clearable=False,
-            searchable=False,
+            searchable=True,
         ),
         html.Label('Negative Y'),
         dcc.Dropdown(
             id="yneg-dropdown",
             options=[{'label': name, 'value': name} for name in df.columns],
             clearable=False,
-            searchable=False,
+            searchable=True,
         )
     ]
 
 
+# After selecting columns to plot, create those traces
 @app.callback(
     Output('basic-interactions', 'figure'),
     [Input('xpos-dropdown', 'value'),
@@ -186,16 +208,19 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
      Input('xneg-dropdown', 'value'),
      Input('yneg-dropdown', 'value'),
      Input('scale-radio', 'value'),
+     Input('name-dropdown', 'value'),
      State('basic-interactions', 'figure')])
-def create_figure(xpos, ypos, xneg, yneg, scale, state):
+def create_figure(xpos, ypos, xneg, yneg, scale, name, state):
     global df
     fig = go.Figure()
+    fig.add_vline(x=0)
+    fig.add_hline(y=0)
     if None not in [xpos, ypos]:
         fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
                         y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
                         mode='markers',
                         marker_color='blue',
-                        text=df['Accession_Number'],
+                        text=df[name],
                         name="Quadrant 1")
     if None not in [xneg, ypos]:
         fig.add_scatter(
@@ -203,7 +228,7 @@ def create_figure(xpos, ypos, xneg, yneg, scale, state):
             y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
             mode='markers',
             marker_color='blue',
-            text=df['Accession_Number'],
+            text=df[name],
             name="Quadrant 2")
     if None not in [xneg, yneg]:
         fig.add_scatter(
@@ -211,7 +236,7 @@ def create_figure(xpos, ypos, xneg, yneg, scale, state):
             y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(lambda x: math.log10(x + 1) * -1),
             mode='markers',
             marker_color='blue',
-            text=df['Accession_Number'],
+            text=df[name],
             name="Quadrant 3")
     if None not in [xpos, yneg]:
         fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
@@ -219,20 +244,26 @@ def create_figure(xpos, ypos, xneg, yneg, scale, state):
                             lambda x: math.log10(x + 1) * -1),
                         mode='markers',
                         marker_color='blue',
-                        text=df['Accession_Number'],
+                        text=df[name],
                         name="Quadrant 4")
+    # Add in axis labels
     fig.update_layout(showlegend=False,
                       xaxis_title=f"\u2190{xneg}-----{xpos}\u2192",
                       yaxis_title=f"\u2190{yneg}-----{ypos}\u2192",
                       title={
-                            'text': ypos,
-                            'y':0.9,
-                            'x':0.5,
-                            'xanchor': 'center',
-                            'yanchor': 'top'})
+                          'text': ypos,
+                          'y': 0.9,
+                          'x': 0.5,
+                          'xanchor': 'center',
+                          'yanchor': 'top'},
+                      paper_bgcolor='rgba(0,0,0,0)',
+                      plot_bgcolor='rgba(0,0,0,0)'
+    )
+
     return fig
 
 
+# Format and display hover data in a table below the graph
 @app.callback(
     Output('hover-data', 'children'),
     [Input('basic-interactions', 'hoverData'),
@@ -240,22 +271,23 @@ def create_figure(xpos, ypos, xneg, yneg, scale, state):
      Input('ypos-dropdown', 'value'),
      Input('xneg-dropdown', 'value'),
      Input('yneg-dropdown', 'value'),
-     State('xpos-dropdown', 'value')]
-)
-def display_hover_data(hoverData, xpos, ypos, xneg, yneg, state):
+     Input('name-dropdown', 'value'),
+     Input('colour-dropdown', 'value'),
+     State('xpos-dropdown', 'value')])
+def display_hover_data(hoverData, xpos, ypos, xneg, yneg, row_name, pathways, state):
     if hoverData is not None:
         global df
         name = hoverData['points'][0]['text']
-        path = df.loc[df['Accession_Number'] == name, 'All_Pathways'].values[0]
+        path = df.loc[df[row_name] == name, pathways].values[0]
         output_dict = {}
         if xpos is not None:
-            output_dict[xpos] = df.loc[df['Accession_Number'] == name, xpos].values[0]
+            output_dict[xpos] = df.loc[df[row_name] == name, xpos].values[0]
         if ypos is not None:
-            output_dict[ypos] = df.loc[df['Accession_Number'] == name, ypos].values[0]
+            output_dict[ypos] = df.loc[df[row_name] == name, ypos].values[0]
         if xneg is not None:
-            output_dict[xneg] = df.loc[df['Accession_Number'] == name, xneg].values[0]
+            output_dict[xneg] = df.loc[df[row_name] == name, xneg].values[0]
         if yneg is not None:
-            output_dict[yneg] = df.loc[df['Accession_Number'] == name, yneg].values[0]
+            output_dict[yneg] = df.loc[df[row_name] == name, yneg].values[0]
         blah = f'Protein:\t{name}\nPathways:\t{path}\n' + ''.join(
             f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
         return blah
