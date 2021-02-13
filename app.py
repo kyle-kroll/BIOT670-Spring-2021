@@ -221,7 +221,15 @@ def create_figure(xpos, ypos, xneg, yneg, scale, state):
                         marker_color='blue',
                         text=df['Accession_Number'],
                         name="Quadrant 4")
-    fig.update_layout(showlegend=False)
+    fig.update_layout(showlegend=False,
+                      xaxis_title=f"\u2190{xneg}-----{xpos}\u2192",
+                      yaxis_title=f"\u2190{yneg}-----{ypos}\u2192",
+                      title={
+                            'text': ypos,
+                            'y':0.9,
+                            'x':0.5,
+                            'xanchor': 'center',
+                            'yanchor': 'top'})
     return fig
 
 
