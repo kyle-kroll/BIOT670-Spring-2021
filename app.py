@@ -10,10 +10,11 @@ import dash_bootstrap_components as dbc
 import base64
 import io
 import pandas as pd
+import plotly
 import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
 import math
-import plotly.express as px
+import numpy as np
 
 external_stylesheets = [dbc.themes.BOOTSTRAP]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -26,6 +27,33 @@ styles = {
         'overflowX': 'scroll'
     }
 }
+
+# Color dictionary - Mary
+#Dicitonary for colors of pathways
+color_dict={'Integrin':'limegreen',
+            'Blood_Coagulation':'firebrick',
+            'Cytoskeleton':'orangered',
+            'Chemokine_Cytokine_Signaling':'tomato',
+            'Chemokine_Cytokine_Signaling, Cytoskeleton':'royalblue',
+            'Chemokine_Cytokine_Signaling, Cytoskeleton, Integrin':'seagreen',
+            'Chemokine_Cytokine_Signaling, Cytoskeleton, Huntington':'wheat',
+            'Chemokine_Cytokine_Signaling, Huntington, Integrin':'yellowgreen',
+            'Chemokine_Cytokine_Signaling, Cytoskeleton, Huntington, Integrin':'violet',
+            'Huntington, Integrin':'crimson',
+            'Parkinson':'lightseagreen',
+            'Cytoskeleton, Huntington':'aqua',
+            'Chemokine_Cytokine_Signaling, Integrin':'palegreen',
+            'Glycolysis, Huntington':'chocolate',
+            'ATP_Synthesis':'brown',
+            'ATP_Synthesis, Huntington':'burlywood',
+            'Glycolysis':'mediumvioletred',
+            'Glycolysis, Pyruvate_Metabolism':'cadetblue',
+            'Huntington':'goldenrod',
+            'Pyruvate_Metabolism':'darkkhaki',
+            'Pyruvate_Metabolism, TCA_Cycle':'sienna',
+            'TCA_Cycle':'darkred',
+            'De_Novo_Purine_Biosynthesis':'mediumpurple',
+            'None':'slategray'}
 
 # Declare a global dataframe to hold the uploaded information
 df = pd.DataFrame()
@@ -58,7 +86,9 @@ def serve_layout():
                         # Allow multiple files to be uploaded
                         multiple=False
                     ),
+                    html.Div(id='file-name'),
                     html.Div(id='output-data-upload'),
+
                     html.Div(id='dropdown-items'),
                     html.Label('Plot Axis Scale'),
                     html.Div(children=[
@@ -85,8 +115,8 @@ def serve_layout():
                             'toImageButtonOptions': {
                                 'format': 'svg',  # one of png, svg, jpeg, webp
                                 'filename': 'custom_image',
-                                'height': 800,
-                                'width': 800,
+                                'height': 1080,
+                                'width': 1920,
                                 'scale': 1  # Multiply title/legend/axis/canvas sizes by this factor
                             },
 
@@ -132,7 +162,7 @@ def parse_contents(contents, filename, date):
                 io.StringIO(decoded.decode('utf-8')))
         elif 'tsv' in filename:
             df = pd.read_csv(
-                io.StringIO(decoded.decode(('utf-8'))),
+                io.StringIO(decoded.decode('utf-8')),
                 sep='\t'
             )
         elif 'xls' in filename:
@@ -143,18 +173,20 @@ def parse_contents(contents, filename, date):
         return html.Div([
             'There was an error processing this file.'
         ])
+    df = df.replace(np.nan, 'None', regex=True)
 
 
 # Callback for handling uploaded data
 # After data uploaded it is parsed into global df item and then populates the columns for dropdowns 
-@app.callback(Output('dropdown-items', 'children'),
+@app.callback(Output('file-name', 'children'),
+              Output('dropdown-items', 'children'),
               Input('upload-data', 'contents'),
               State('upload-data', 'filename'),
               State('upload-data', 'last_modified'))
 def update_output(list_of_contents, list_of_names, list_of_dates):
     if list_of_contents is not None:
         parse_contents(list_of_contents, list_of_names, list_of_dates)
-    return [
+    return [html.Label(f"File: {list_of_names}"),(
         html.Label('Row names'),
         dcc.Dropdown(
             id='name-dropdown',
@@ -196,7 +228,7 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
             options=[{'label': name, 'value': name} for name in df.columns],
             clearable=False,
             searchable=True,
-        )
+        ))
     ]
 
 
@@ -209,58 +241,69 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
      Input('yneg-dropdown', 'value'),
      Input('scale-radio', 'value'),
      Input('name-dropdown', 'value'),
+     Input('colour-dropdown', 'value'),
      State('basic-interactions', 'figure')])
-def create_figure(xpos, ypos, xneg, yneg, scale, name, state):
+def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, state):
     global df
-    fig = go.Figure()
-    fig.add_vline(x=0)
-    fig.add_hline(y=0)
+    data = []
     if None not in [xpos, ypos]:
-        fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
+        data.append(go.Scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
                         y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
                         mode='markers',
-                        marker_color='blue',
+                        #marker_color=[color_dict[k] for k in df[colour_by].values],
+                        marker_color="blue",
                         text=df[name],
-                        name="Quadrant 1")
+                        name="Quadrant 1",
+                        showlegend=False))
     if None not in [xneg, ypos]:
-        fig.add_scatter(
+        data.append(go.Scatter(
             x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x + 1) * -1),
             y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
             mode='markers',
-            marker_color='blue',
+            # marker_color=[color_dict[k] for k in df[colour_by].values],
+            marker_color="blue",
             text=df[name],
-            name="Quadrant 2")
+            name="Quadrant 2",
+            showlegend=False))
     if None not in [xneg, yneg]:
-        fig.add_scatter(
+        data.append(go.Scatter(
             x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x + 1) * -1),
             y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(lambda x: math.log10(x + 1) * -1),
             mode='markers',
-            marker_color='blue',
+            # marker_color=[color_dict[k] for k in df[colour_by].values],
+            marker_color="blue",
             text=df[name],
-            name="Quadrant 3")
+            name="Quadrant 3",
+            showlegend=False))
     if None not in [xpos, yneg]:
-        fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
+        data.append(go.Scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
                         y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(
                             lambda x: math.log10(x + 1) * -1),
                         mode='markers',
-                        marker_color='blue',
+                        #marker_color=[color_dict[k] for k in df[colour_by].values],
+                        marker_color="blue",
                         text=df[name],
-                        name="Quadrant 4")
-    # Add in axis labels
-    fig.update_layout(showlegend=False,
-                      xaxis_title=f"\u2190{xneg}-----{xpos}\u2192",
-                      yaxis_title=f"\u2190{yneg}-----{ypos}\u2192",
-                      title={
-                          'text': ypos,
-                          'y': 0.9,
-                          'x': 0.5,
-                          'xanchor': 'center',
-                          'yanchor': 'top'},
-                      paper_bgcolor='rgba(0,0,0,0)',
-                      plot_bgcolor='rgba(0,0,0,0)'
-    )
+                        name="Quadrant 4",
+                        showlegend=False))
 
-    return fig
+    # Add in axis labels
+    if len(data) > 0:
+        fig = go.Figure(data=data)
+        '''for k in color_dict.keys():
+        fig.add_scatter(x=[None], y=[None], mode='markers',
+                            marker=dict(size=10, color=plotly.colors.qualitative.Dark24),
+                            legendgroup='Markers', showlegend=True, name=colour_by)'''
+        fig.add_hline(y=0)
+        fig.add_vline(x=0)
+        fig.update_layout(
+                          showlegend=True,
+                          xaxis_title=f"\u2190{xneg}-----{xpos}\u2192",
+                          yaxis_title=f"\u2190{yneg}-----{ypos}\u2192",
+                          paper_bgcolor='rgba(0,0,0,0)',
+                          plot_bgcolor='rgba(0,0,0,0)')
+        return fig
+    else:
+        return go.Figure()
 
 
 # Format and display hover data in a table below the graph
@@ -278,7 +321,10 @@ def display_hover_data(hoverData, xpos, ypos, xneg, yneg, row_name, pathways, st
     if hoverData is not None:
         global df
         name = hoverData['points'][0]['text']
-        path = df.loc[df[row_name] == name, pathways].values[0]
+        if pathways is not None:
+            path = df.loc[df[row_name] == name, pathways].values[0]
+        else:
+            path = "NA"
         output_dict = {}
         if xpos is not None:
             output_dict[xpos] = df.loc[df[row_name] == name, xpos].values[0]
@@ -288,7 +334,7 @@ def display_hover_data(hoverData, xpos, ypos, xneg, yneg, row_name, pathways, st
             output_dict[xneg] = df.loc[df[row_name] == name, xneg].values[0]
         if yneg is not None:
             output_dict[yneg] = df.loc[df[row_name] == name, yneg].values[0]
-        blah = f'Protein:\t{name}\nPathways:\t{path}\n' + ''.join(
+        blah = f'Protein:\t{name}\nColoured by:\t{path}\n' + ''.join(
             f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
         return blah
 
