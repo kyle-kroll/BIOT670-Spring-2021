@@ -2,6 +2,7 @@
     BIOT670 Capstone Project - Quad Viewer
     plotting functions
 '''
+import json
 import os
 import dash
 import dash_core_components as dcc
@@ -15,6 +16,7 @@ import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
 import math
 import numpy as np
+import plotly.express as px
 
 external_stylesheets = [dbc.themes.BOOTSTRAP]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -115,8 +117,8 @@ def serve_layout():
                             'toImageButtonOptions': {
                                 'format': 'svg',  # one of png, svg, jpeg, webp
                                 'filename': 'custom_image',
-                                'height': 1080,
-                                'width': 1920,
+                                'height': 800,
+                                'width': 800,
                                 'scale': 1  # Multiply title/legend/axis/canvas sizes by this factor
                             },
 
@@ -245,65 +247,96 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
      State('basic-interactions', 'figure')])
 def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, state):
     global df
-    data = []
-    if None not in [xpos, ypos]:
-        data.append(go.Scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
-                        y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
-                        mode='markers',
-                        #marker_color=[color_dict[k] for k in df[colour_by].values],
-                        marker_color="blue",
-                        text=df[name],
-                        name="Quadrant 1",
-                        showlegend=False))
-    if None not in [xneg, ypos]:
-        data.append(go.Scatter(
-            x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x + 1) * -1),
-            y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
-            mode='markers',
-            # marker_color=[color_dict[k] for k in df[colour_by].values],
-            marker_color="blue",
-            text=df[name],
-            name="Quadrant 2",
-            showlegend=False))
-    if None not in [xneg, yneg]:
-        data.append(go.Scatter(
-            x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x + 1) * -1),
-            y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(lambda x: math.log10(x + 1) * -1),
-            mode='markers',
-            # marker_color=[color_dict[k] for k in df[colour_by].values],
-            marker_color="blue",
-            text=df[name],
-            name="Quadrant 3",
-            showlegend=False))
-    if None not in [xpos, yneg]:
-        data.append(go.Scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
-                        y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(
-                            lambda x: math.log10(x + 1) * -1),
-                        mode='markers',
-                        #marker_color=[color_dict[k] for k in df[colour_by].values],
-                        marker_color="blue",
-                        text=df[name],
-                        name="Quadrant 4",
-                        showlegend=False))
+    fig = go.Figure()
+    fig.update_layout(height=600, width=600, autosize=False)
+    if None not in [xpos, ypos, xneg, yneg]:
+        # Create a figure for each quadrant
+        fig1 = px.scatter(df, x=xpos, y=ypos, color=colour_by, custom_data=[name],
+                          hover_data={
+                              xpos:False,
+                              ypos:False,
+                              colour_by: False,
+                              name: True
+                            })
+        fig2 = px.scatter(df, x=xneg, y=ypos, color=colour_by, custom_data=[name],
+                          hover_data={
+                              xpos: False,
+                              ypos: False,
+                              colour_by: False,
+                              name: True
+                          })
+        fig2.update_layout(showlegend=False)
+        fig3 = px.scatter(df, x=xneg, y=yneg, color=colour_by, custom_data=[name],
+                          hover_data={
+                              xpos: False,
+                              ypos: False,
+                              colour_by: False,
+                              name: True
+                          })
+        fig3.update_layout(showlegend=False)
+        fig4 = px.scatter(df, x=xpos, y=yneg, color=colour_by, custom_data=[name],
+                          hover_data={
+                              xpos: False,
+                              ypos: False,
+                              colour_by: False,
+                              name: True
+                          })
+        fig4.update_layout(showlegend=False)
+
+        # Set negative columns to negative values
+        for sc in fig2['data']:
+            sc['x'] = sc['x'] * -1
+        for sc in fig3['data']:
+            sc['x'] = sc['x'] * -1
+            sc['y'] = sc['y'] * -1
+        for sc in fig4['data']:
+            sc['y'] = sc['y'] * -1
+        # Find the maximum value from any column and round to neared 100
+        max_val = max(np.concatenate([np.concatenate([abs(sc['x']) for sc in fig1['data']]),
+                                      np.concatenate([abs(sc['y']) for sc in fig1['data']]),
+                                      np.concatenate([abs(sc['x']) for sc in fig2['data']]),
+                                      np.concatenate([abs(sc['y']) for sc in fig2['data']]),
+                                      np.concatenate([abs(sc['x']) for sc in fig3['data']]),
+                                      np.concatenate([abs(sc['y']) for sc in fig3['data']]),
+                                      np.concatenate([abs(sc['x']) for sc in fig4['data']]),
+                                      np.concatenate([abs(sc['y']) for sc in fig4['data']])]))
+        axis_max = int(round(float(max_val) / 100) * 100)
+
+        # Create the final figure with new axis limits
+        fig = go.Figure(data=fig1.data + fig2.data + fig3.data + fig4.data,
+                         layout_xaxis_range=[axis_max * -1, axis_max],
+                         layout_yaxis_range=[axis_max * -1, axis_max])
+
+        # Update the axis ticks so they don't show negative values
+        fig.update_layout(
+            xaxis=dict(
+                tickmode='array',
+                tickvals=np.concatenate([list(range(axis_max * -1, 1, 100)), list(range(0, axis_max + 1, 100))]),
+                ticktext=np.concatenate(
+                    [[x * -1 for x in list(range(axis_max * -1, 1, 100))], list(range(0, axis_max + 1, 100))])
+            ),
+            yaxis=dict(
+                tickmode='array',
+                tickvals=np.concatenate([list(range(axis_max * -1, 1, 100)), list(range(0, axis_max + 1, 100))]),
+                ticktext=np.concatenate(
+                    [[x * -1 for x in list(range(axis_max * -1, 1, 100))], list(range(0, axis_max + 1, 100))])
+            ),
+            width=600,
+            height=600, showlegend=False
+        )
 
     # Add in axis labels
-    if len(data) > 0:
-        fig = go.Figure(data=data)
-        '''for k in color_dict.keys():
-        fig.add_scatter(x=[None], y=[None], mode='markers',
-                            marker=dict(size=10, color=plotly.colors.qualitative.Dark24),
-                            legendgroup='Markers', showlegend=True, name=colour_by)'''
-        fig.add_hline(y=0)
-        fig.add_vline(x=0)
-        fig.update_layout(
-                          showlegend=True,
-                          xaxis_title=f"\u2190{xneg}-----{xpos}\u2192",
-                          yaxis_title=f"\u2190{yneg}-----{ypos}\u2192",
-                          paper_bgcolor='rgba(0,0,0,0)',
-                          plot_bgcolor='rgba(0,0,0,0)')
-        return fig
-    else:
-        return go.Figure()
+
+    fig.add_hline(y=0)
+    fig.add_vline(x=0)
+    fig.update_layout(
+
+                      xaxis_title=f"\u2190{xneg}-----{xpos}\u2192",
+                      yaxis_title=f"\u2190{yneg}-----{ypos}\u2192",
+                      paper_bgcolor='rgba(0,0,0,0)',
+                      plot_bgcolor='rgba(0,0,0,0)')
+    return fig
+
 
 
 # Format and display hover data in a table below the graph
@@ -320,7 +353,7 @@ def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, state):
 def display_hover_data(hoverData, xpos, ypos, xneg, yneg, row_name, pathways, state):
     if hoverData is not None:
         global df
-        name = hoverData['points'][0]['text']
+        name = hoverData['points'][0]['customdata'][0]
         if pathways is not None:
             path = df.loc[df[row_name] == name, pathways].values[0]
         else:
@@ -337,6 +370,7 @@ def display_hover_data(hoverData, xpos, ypos, xneg, yneg, row_name, pathways, st
         blah = f'Protein:\t{name}\nColoured by:\t{path}\n' + ''.join(
             f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
         return blah
+        #return json.dumps(hoverData, indent=4)
 
 
 if __name__ == '__main__':
