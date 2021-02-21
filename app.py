@@ -258,30 +258,31 @@ def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, state):
                               colour_by: False,
                               name: True
                             })
+
         fig2 = px.scatter(df, x=xneg, y=ypos, color=colour_by, custom_data=[name],
                           hover_data={
-                              xpos: False,
+                              xneg: False,
                               ypos: False,
                               colour_by: False,
                               name: True
                           })
-        fig2.update_layout(showlegend=False)
+
         fig3 = px.scatter(df, x=xneg, y=yneg, color=colour_by, custom_data=[name],
                           hover_data={
-                              xpos: False,
-                              ypos: False,
+                              xneg: False,
+                              yneg: False,
                               colour_by: False,
                               name: True
                           })
-        fig3.update_layout(showlegend=False)
+
         fig4 = px.scatter(df, x=xpos, y=yneg, color=colour_by, custom_data=[name],
                           hover_data={
                               xpos: False,
-                              ypos: False,
+                              yneg: False,
                               colour_by: False,
                               name: True
                           })
-        fig4.update_layout(showlegend=False)
+
 
         # Set negative columns to negative values
         for sc in fig2['data']:
@@ -322,7 +323,7 @@ def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, state):
                     [[x * -1 for x in list(range(axis_max * -1, 1, 100))], list(range(0, axis_max + 1, 100))])
             ),
             width=600,
-            height=600, showlegend=False
+            height=600, autosize=False, showlegend=False
         )
 
     # Add in axis labels
