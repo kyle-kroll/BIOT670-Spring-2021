@@ -8,3 +8,4 @@ Goals:
 - Replicate Dr. Ray's plotting program with the example data hardcoded
 - After replication begin abstracting away the hardcorded portions
 
+A live version can be found at https://quadviewer.herokuapp.com

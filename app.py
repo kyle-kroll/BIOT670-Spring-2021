@@ -59,7 +59,7 @@ color_dict={'Integrin':'limegreen',
 
 # Declare a global dataframe to hold the uploaded information
 df = pd.DataFrame()
-
+files = {}
 
 def serve_layout():
     layout = html.Div([
@@ -72,22 +72,19 @@ def serve_layout():
                     dcc.Upload(
                         id='upload-data',
                         children=html.Div([
-                            'Drag and Drop or ',
-                            html.A('Select Files')
+                            html.Button('Click Here to Select File(s)')
                         ]),
                         style={
                             'width': '100%',
                             'height': '60px',
                             'lineHeight': '60px',
-                            'borderWidth': '1px',
-                            'borderStyle': 'dashed',
-                            'borderRadius': '5px',
                             'textAlign': 'center',
                             'margin': '10px'
                         },
                         # Allow multiple files to be uploaded
-                        multiple=False
+                        multiple=True
                     ),
+                    html.Div(id='file-selector'),
                     html.Div(id='file-name'),
                     html.Div(id='output-data-upload'),
 
@@ -175,20 +172,40 @@ def parse_contents(contents, filename, date):
         return html.Div([
             'There was an error processing this file.'
         ])
-    df = df.replace(np.nan, 'None', regex=True)
+    files[filename] = df.to_dict()
 
 
 # Callback for handling uploaded data
 # After data uploaded it is parsed into global df item and then populates the columns for dropdowns 
-@app.callback(Output('file-name', 'children'),
-              Output('dropdown-items', 'children'),
+@app.callback(Output('file-selector', 'children'),
               Input('upload-data', 'contents'),
               State('upload-data', 'filename'),
               State('upload-data', 'last_modified'))
 def update_output(list_of_contents, list_of_names, list_of_dates):
     if list_of_contents is not None:
-        parse_contents(list_of_contents, list_of_names, list_of_dates)
-    return [html.Label(f"File: {list_of_names}"),(
+        children = [
+            parse_contents(c, n, d) for c, n, d in
+            zip(list_of_contents, list_of_names, list_of_dates)]
+
+        return (
+            dcc.Dropdown(
+                id='file-dropdown',
+                options=[{'label': file, 'value': file} for file in list_of_names],
+                clearable=False,
+                searchable=True,
+                placeholder='Please Select Your File'
+            ))
+
+
+@app.callback(Output('file-name', 'children'),
+              Output('dropdown-items', 'children'),
+              Input('file-dropdown', 'value'))
+def drop_down_updates(file_name):
+    global df
+    if file_name is not None:
+        df = pd.DataFrame.from_dict(files[file_name])
+
+    return [html.Label(f"File: {file_name}"), (
         html.Label('Row names'),
         dcc.Dropdown(
             id='name-dropdown',
@@ -231,7 +248,7 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
             clearable=False,
             searchable=True,
         ))
-    ]
+            ]
 
 
 # After selecting columns to plot, create those traces
@@ -258,31 +275,30 @@ def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, state):
                               colour_by: False,
                               name: True
                             })
-
         fig2 = px.scatter(df, x=xneg, y=ypos, color=colour_by, custom_data=[name],
                           hover_data={
-                              xneg: False,
+                              xpos: False,
                               ypos: False,
                               colour_by: False,
                               name: True
                           })
-
+        fig2.update_layout(showlegend=False)
         fig3 = px.scatter(df, x=xneg, y=yneg, color=colour_by, custom_data=[name],
                           hover_data={
-                              xneg: False,
-                              yneg: False,
+                              xpos: False,
+                              ypos: False,
                               colour_by: False,
                               name: True
                           })
-
+        fig3.update_layout(showlegend=False)
         fig4 = px.scatter(df, x=xpos, y=yneg, color=colour_by, custom_data=[name],
                           hover_data={
                               xpos: False,
-                              yneg: False,
+                              ypos: False,
                               colour_by: False,
                               name: True
                           })
-
+        fig4.update_layout(showlegend=False)
 
         # Set negative columns to negative values
         for sc in fig2['data']:
@@ -323,7 +339,7 @@ def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, state):
                     [[x * -1 for x in list(range(axis_max * -1, 1, 100))], list(range(0, axis_max + 1, 100))])
             ),
             width=600,
-            height=600, autosize=False, showlegend=False
+            height=600, showlegend=False
         )
 
     # Add in axis labels
