@@ -2,6 +2,7 @@
     BIOT670 Capstone Project - Quad Viewer
     plotting functions
 '''
+import json
 import os
 import dash
 import dash_core_components as dcc
@@ -10,10 +11,9 @@ import dash_bootstrap_components as dbc
 import base64
 import io
 import pandas as pd
-import plotly
-import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
-import math
+from uiutils import update_dropdowns, serve_layout
+from plotutils import generate_plot
 import numpy as np
 
 external_stylesheets = [dbc.themes.BOOTSTRAP]
@@ -27,121 +27,9 @@ styles = {
         'overflowX': 'scroll'
     }
 }
-
-# Color dictionary - Mary
-#Dicitonary for colors of pathways
-color_dict={'Integrin':'limegreen',
-            'Blood_Coagulation':'firebrick',
-            'Cytoskeleton':'orangered',
-            'Chemokine_Cytokine_Signaling':'tomato',
-            'Chemokine_Cytokine_Signaling, Cytoskeleton':'royalblue',
-            'Chemokine_Cytokine_Signaling, Cytoskeleton, Integrin':'seagreen',
-            'Chemokine_Cytokine_Signaling, Cytoskeleton, Huntington':'wheat',
-            'Chemokine_Cytokine_Signaling, Huntington, Integrin':'yellowgreen',
-            'Chemokine_Cytokine_Signaling, Cytoskeleton, Huntington, Integrin':'violet',
-            'Huntington, Integrin':'crimson',
-            'Parkinson':'lightseagreen',
-            'Cytoskeleton, Huntington':'aqua',
-            'Chemokine_Cytokine_Signaling, Integrin':'palegreen',
-            'Glycolysis, Huntington':'chocolate',
-            'ATP_Synthesis':'brown',
-            'ATP_Synthesis, Huntington':'burlywood',
-            'Glycolysis':'mediumvioletred',
-            'Glycolysis, Pyruvate_Metabolism':'cadetblue',
-            'Huntington':'goldenrod',
-            'Pyruvate_Metabolism':'darkkhaki',
-            'Pyruvate_Metabolism, TCA_Cycle':'sienna',
-            'TCA_Cycle':'darkred',
-            'De_Novo_Purine_Biosynthesis':'mediumpurple',
-            'None':'slategray'}
-
 # Declare a global dataframe to hold the uploaded information
 df = pd.DataFrame()
-
-
-def serve_layout():
-    layout = html.Div([
-        # The following dbc.Row contains the 2 column layout where settings are on the left
-        # and the plot is the column to the right
-
-        dbc.Row([
-            dbc.Col([
-                html.Div(className='six columns', children=[
-                    dcc.Upload(
-                        id='upload-data',
-                        children=html.Div([
-                            'Drag and Drop or ',
-                            html.A('Select Files')
-                        ]),
-                        style={
-                            'width': '100%',
-                            'height': '60px',
-                            'lineHeight': '60px',
-                            'borderWidth': '1px',
-                            'borderStyle': 'dashed',
-                            'borderRadius': '5px',
-                            'textAlign': 'center',
-                            'margin': '10px'
-                        },
-                        # Allow multiple files to be uploaded
-                        multiple=False
-                    ),
-                    html.Div(id='file-name'),
-                    html.Div(id='output-data-upload'),
-
-                    html.Div(id='dropdown-items'),
-                    html.Label('Plot Axis Scale'),
-                    html.Div(children=[
-                        dcc.RadioItems(
-                            id='scale-radio',
-                            options=[
-                                {'label': 'Linear', 'value': 'lin'},
-                                {'label': 'Log10', 'value': 'log'}
-                            ],
-                            value='lin',
-                            labelStyle={'display': 'block'}
-                        )]),
-                ])
-            ], width={"size": 2}
-
-            ),
-            # Figure plot
-            dbc.Col(
-                html.Div(className='six columns', children=[
-                    dcc.Graph(
-                        id='basic-interactions',
-                        clear_on_unhover=True,
-                        config={
-                            'toImageButtonOptions': {
-                                'format': 'svg',  # one of png, svg, jpeg, webp
-                                'filename': 'custom_image',
-                                'height': 1080,
-                                'width': 1920,
-                                'scale': 1  # Multiply title/legend/axis/canvas sizes by this factor
-                            },
-
-                        },
-
-                    )
-                ])
-            )
-            # Second row is for the hover data which only has a single, centered column
-        ]),
-        dbc.Row([
-            dbc.Col([
-                html.Div([
-                    dcc.Markdown("""
-                                    **Hover Data**
-                            
-                                    Mouse over values in the graph.
-                                """),
-                    html.Pre(id='hover-data')
-                ])
-            ], width={"size": 6, "offset": 3})
-        ])
-    ])
-    return layout
-
+files = {}
 
 app.layout = serve_layout
 
@@ -174,62 +62,39 @@ def parse_contents(contents, filename, date):
             'There was an error processing this file.'
         ])
     df = df.replace(np.nan, 'None', regex=True)
+    files[filename] = df.to_dict()
 
 
 # Callback for handling uploaded data
 # After data uploaded it is parsed into global df item and then populates the columns for dropdowns 
-@app.callback(Output('file-name', 'children'),
-              Output('dropdown-items', 'children'),
+@app.callback(Output('file-selector', 'children'),
               Input('upload-data', 'contents'),
               State('upload-data', 'filename'),
               State('upload-data', 'last_modified'))
 def update_output(list_of_contents, list_of_names, list_of_dates):
     if list_of_contents is not None:
-        parse_contents(list_of_contents, list_of_names, list_of_dates)
-    return [html.Label(f"File: {list_of_names}"),(
-        html.Label('Row names'),
-        dcc.Dropdown(
-            id='name-dropdown',
-            options=[{'label': name, 'value': name} for name in df.columns],
-            clearable=False,
-            searchable=True
-        ),
-        html.Label('Color by:'),
-        dcc.Dropdown(
-            id='colour-dropdown',
-            options=[{'label': name, 'value': name} for name in df.columns],
-            clearable=False,
-            searchable=True
-        ),
-        html.Label('Positive X'),
-        dcc.Dropdown(
-            id="xpos-dropdown",
-            options=[{'label': name, 'value': name} for name in df.columns],
-            clearable=False,
-            searchable=True,
-        ),
-        html.Label('Positive Y'),
-        dcc.Dropdown(
-            id="ypos-dropdown",
-            options=[{'label': name, 'value': name} for name in df.columns],
-            clearable=False,
-            searchable=True,
-        ),
-        html.Label('Negative X'),
-        dcc.Dropdown(
-            id="xneg-dropdown",
-            options=[{'label': name, 'value': name} for name in df.columns],
-            clearable=False,
-            searchable=True,
-        ),
-        html.Label('Negative Y'),
-        dcc.Dropdown(
-            id="yneg-dropdown",
-            options=[{'label': name, 'value': name} for name in df.columns],
-            clearable=False,
-            searchable=True,
-        ))
-    ]
+        children = [
+            parse_contents(c, n, d) for c, n, d in
+            zip(list_of_contents, list_of_names, list_of_dates)]
+
+        return (
+            dcc.Dropdown(
+                id='file-dropdown',
+                options=[{'label': file, 'value': file} for file in list_of_names],
+                clearable=False,
+                searchable=True,
+                placeholder='Please Select Your File'
+            ))
+
+
+@app.callback(Output('file-name', 'children'),
+              Output('dropdown-items', 'children'),
+              Input('file-dropdown', 'value'))
+def drop_down_updates(file_name):
+    global df
+    if file_name is not None:
+        df = pd.DataFrame.from_dict(files[file_name])
+    return update_dropdowns(file_name, df)
 
 
 # After selecting columns to plot, create those traces
@@ -245,65 +110,8 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
      State('basic-interactions', 'figure')])
 def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, state):
     global df
-    data = []
-    if None not in [xpos, ypos]:
-        data.append(go.Scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
-                        y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
-                        mode='markers',
-                        #marker_color=[color_dict[k] for k in df[colour_by].values],
-                        marker_color="blue",
-                        text=df[name],
-                        name="Quadrant 1",
-                        showlegend=False))
-    if None not in [xneg, ypos]:
-        data.append(go.Scatter(
-            x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x + 1) * -1),
-            y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
-            mode='markers',
-            # marker_color=[color_dict[k] for k in df[colour_by].values],
-            marker_color="blue",
-            text=df[name],
-            name="Quadrant 2",
-            showlegend=False))
-    if None not in [xneg, yneg]:
-        data.append(go.Scatter(
-            x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x + 1) * -1),
-            y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(lambda x: math.log10(x + 1) * -1),
-            mode='markers',
-            # marker_color=[color_dict[k] for k in df[colour_by].values],
-            marker_color="blue",
-            text=df[name],
-            name="Quadrant 3",
-            showlegend=False))
-    if None not in [xpos, yneg]:
-        data.append(go.Scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
-                        y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(
-                            lambda x: math.log10(x + 1) * -1),
-                        mode='markers',
-                        #marker_color=[color_dict[k] for k in df[colour_by].values],
-                        marker_color="blue",
-                        text=df[name],
-                        name="Quadrant 4",
-                        showlegend=False))
+    return generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by)
 
-    # Add in axis labels
-    if len(data) > 0:
-        fig = go.Figure(data=data)
-        '''for k in color_dict.keys():
-        fig.add_scatter(x=[None], y=[None], mode='markers',
-                            marker=dict(size=10, color=plotly.colors.qualitative.Dark24),
-                            legendgroup='Markers', showlegend=True, name=colour_by)'''
-        fig.add_hline(y=0)
-        fig.add_vline(x=0)
-        fig.update_layout(
-                          showlegend=True,
-                          xaxis_title=f"\u2190{xneg}-----{xpos}\u2192",
-                          yaxis_title=f"\u2190{yneg}-----{ypos}\u2192",
-                          paper_bgcolor='rgba(0,0,0,0)',
-                          plot_bgcolor='rgba(0,0,0,0)')
-        return fig
-    else:
-        return go.Figure()
 
 
 # Format and display hover data in a table below the graph
@@ -320,9 +128,10 @@ def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, state):
 def display_hover_data(hoverData, xpos, ypos, xneg, yneg, row_name, pathways, state):
     if hoverData is not None:
         global df
-        name = hoverData['points'][0]['text']
+        name = hoverData['points'][0]['customdata'][1]
         if pathways is not None:
             path = df.loc[df[row_name] == name, pathways].values[0]
+            path = '\n\t\t'.join(x.strip() for x in path.split(','))
         else:
             path = "NA"
         output_dict = {}
