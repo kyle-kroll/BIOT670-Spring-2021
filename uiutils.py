@@ -53,9 +53,25 @@ def update_dropdowns(file_name, df):
 
 def serve_layout():
     layout = html.Div([
+        dbc.NavbarSimple(
+            children=[
+                dbc.NavItem(dbc.NavLink("Home", href="/")),
+                dbc.NavItem(
+                    html.A(
+                        "Help",
+                        href="https://github.com/kyle-kroll/BIOT670-Spring-2021",
+                        target="_blank",
+                        className="nav-link"
+                    )
+                ),
+            ],
+            brand="QuadViewer",
+            brand_href="#",
+            color="primary",
+            dark=True,
+        ),
         # The following dbc.Row contains the 2 column layout where settings are on the left
         # and the plot is the column to the right
-
         dbc.Row([
             dbc.Col([
                 html.Div(className='six columns', children=[
@@ -96,7 +112,9 @@ def serve_layout():
             ),
             # Figure plot
             dbc.Col(
+
                 html.Div(className='six columns', children=[
+
                     dcc.Graph(
                         id='basic-interactions',
                         clear_on_unhover=True,
@@ -112,7 +130,7 @@ def serve_layout():
                         },
 
                     )
-                ]), width={"size": 4, "offset": 1}
+                ]), width={"size": 6,},style={"height": "100vh"}
             ),
             dbc.Col([
                 html.Div([
@@ -123,8 +141,9 @@ def serve_layout():
                                     """),
                     html.Pre(id='hover-data')
                 ])
-            ], width={"size": 4, "offset": 1})
+            ], width={"size": 4})
             # Second row is for the hover data which only has a single, centered column
         ])
     ])
+
     return layout
