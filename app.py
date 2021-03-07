@@ -128,7 +128,10 @@ def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, state):
 def display_hover_data(hoverData, xpos, ypos, xneg, yneg, row_name, pathways, state):
     if hoverData is not None:
         global df
-        name = hoverData['points'][0]['customdata'][1]
+        try:
+            name = hoverData['points'][0]['customdata'][1]
+        except IndexError:
+            name = hoverData['points'][0]['customdata'][0]
         if pathways is not None:
             path = df.loc[df[row_name] == name, pathways].values[0]
             path = '\n\t\t'.join(x.strip() for x in path.split(','))

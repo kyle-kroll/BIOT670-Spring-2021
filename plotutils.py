@@ -21,11 +21,12 @@ palette = ['limegreen', 'firebrick', 'orangered', 'tomato', 'royalblue', 'seagre
 def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
     fig = go.Figure()
     fig.update_layout(height=600, width=600)
-    color_dict = dict(zip(np.unique(df[colour_by]), palette))
+    if colour_by is not None:
+        color_dict = dict(zip(np.unique(df[colour_by]), palette))
     plot = False
     if None not in [xpos, ypos, xneg, yneg]:
         names = np.concatenate([df[name].values] * 4)
-        colors = np.concatenate([df[colour_by].values] * 4)
+        colors = np.concatenate([df[colour_by].values] * 4) if colour_by is not None else [None] * len(names)
         xp = df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1))
         yp = df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1))
         xn = df[xneg].apply(lambda x: x * -1) if scale == 'lin' else \
