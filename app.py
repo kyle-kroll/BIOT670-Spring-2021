@@ -14,6 +14,7 @@ import pandas as pd
 from dash.dependencies import Input, Output, State
 from uiutils import update_dropdowns, serve_layout
 from plotutils import generate_plot
+import numpy as np
 
 external_stylesheets = [dbc.themes.BOOTSTRAP]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -60,6 +61,7 @@ def parse_contents(contents, filename, date):
         return html.Div([
             'There was an error processing this file.'
         ])
+    df = df.replace(np.nan, 'None', regex=True)
     files[filename] = df.to_dict()
 
 

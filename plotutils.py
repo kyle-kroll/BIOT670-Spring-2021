@@ -3,12 +3,27 @@ import numpy as np
 import plotly.express as px
 
 
+'''
+    Define the color palette that will be used.
+    Author: Mary Mills
+    28 colors for options. 
+    - Should be more than enough to plot in real world situations
+'''
+
+palette=['limegreen', 'firebrick', 'orangered', 'tomato', 'royalblue', 'seagreen',
+         'wheat', 'yellowgreen', 'violet', 'crimson', 'lightseagreen', 'aqua',
+         'palegreen', 'chocolate', 'red', 'gold', 'burlywood', 'mediumvioletred',
+         'cadetblue', 'goldenrod', 'saddlebrown', 'darkgreen', 'darkred', 'mediumpurple',
+         'gray', 'darkmagenta', 'deeppink', 'darkblue']
+
+
 def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
     fig = go.Figure()
     fig.update_layout(height=600, width=600, autosize=False)
     if None not in [xpos, ypos, xneg, yneg]:
         # Create a figure for each quadrant
         fig1 = px.scatter(df, x=xpos, y=ypos, color=colour_by, custom_data=[name],
+                          color_discrete_sequence=palette,
                           hover_data={
                               xpos: False,
                               ypos: False,
@@ -16,6 +31,7 @@ def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
                               name: True
                           })
         fig2 = px.scatter(df, x=xneg, y=ypos, color=colour_by, custom_data=[name],
+                          color_discrete_sequence=palette,
                           hover_data={
                               xpos: False,
                               ypos: False,
@@ -24,6 +40,7 @@ def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
                           })
         fig2.update_layout(showlegend=False)
         fig3 = px.scatter(df, x=xneg, y=yneg, color=colour_by, custom_data=[name],
+                          color_discrete_sequence=palette,
                           hover_data={
                               xpos: False,
                               ypos: False,
@@ -32,6 +49,7 @@ def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
                           })
         fig3.update_layout(showlegend=False)
         fig4 = px.scatter(df, x=xpos, y=yneg, color=colour_by, custom_data=[name],
+                          color_discrete_sequence=palette,
                           hover_data={
                               xpos: False,
                               ypos: False,
@@ -58,7 +76,11 @@ def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
                                       np.concatenate([abs(sc['x']) for sc in fig4['data']]),
                                       np.concatenate([abs(sc['y']) for sc in fig4['data']])]))
         axis_max = int(round(float(max_val) / 100) * 100)
-
+        ax_dict = dict(
+                tickmode='array',
+                tickvals=np.concatenate([list(range(axis_max * -1, 1, 100)), list(range(0, axis_max + 1, 100))]),
+                ticktext=np.concatenate(
+                    [[x * -1 for x in list(range(axis_max * -1, 1, 100))], list(range(0, axis_max + 1, 100))]))
         # Create the final figure with new axis limits
         fig = go.Figure(data=fig1.data + fig2.data + fig3.data + fig4.data,
                         layout_xaxis_range=[axis_max * -1, axis_max],
@@ -66,18 +88,8 @@ def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
 
         # Update the axis ticks so they don't show negative values
         fig.update_layout(
-            xaxis=dict(
-                tickmode='array',
-                tickvals=np.concatenate([list(range(axis_max * -1, 1, 100)), list(range(0, axis_max + 1, 100))]),
-                ticktext=np.concatenate(
-                    [[x * -1 for x in list(range(axis_max * -1, 1, 100))], list(range(0, axis_max + 1, 100))])
-            ),
-            yaxis=dict(
-                tickmode='array',
-                tickvals=np.concatenate([list(range(axis_max * -1, 1, 100)), list(range(0, axis_max + 1, 100))]),
-                ticktext=np.concatenate(
-                    [[x * -1 for x in list(range(axis_max * -1, 1, 100))], list(range(0, axis_max + 1, 100))])
-            ),
+            xaxis=ax_dict,
+            yaxis=ax_dict,
             width=600,
             height=600, showlegend=False
         )
