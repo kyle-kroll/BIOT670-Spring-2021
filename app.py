@@ -2,6 +2,7 @@
     BIOT670 Capstone Project - Quad Viewer
     plotting functions
 '''
+import json
 import os
 import dash
 import dash_core_components as dcc
@@ -10,9 +11,10 @@ import dash_bootstrap_components as dbc
 import base64
 import io
 import pandas as pd
-import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
-import math
+from uiutils import update_dropdowns, serve_layout
+from plotutils import generate_plot
+import numpy as np
 
 external_stylesheets = [dbc.themes.BOOTSTRAP]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -25,92 +27,14 @@ styles = {
         'overflowX': 'scroll'
     }
 }
-
 # Declare a global dataframe to hold the uploaded information
 df = pd.DataFrame()
-
-
-def serve_layout():
-    layout = html.Div([
-        # The following dbc.Row contains the 2 column layout where settings are on the left
-        # and the plot is the column to the right
-
-        dbc.Row([
-            dbc.Col([
-                html.Div(className='six columns', children=[
-                    dcc.Upload(
-                        id='upload-data',
-                        children=html.Div([
-                            'Drag and Drop or ',
-                            html.A('Select Files')
-                        ]),
-                        style={
-                            'width': '100%',
-                            'height': '60px',
-                            'lineHeight': '60px',
-                            'borderWidth': '1px',
-                            'borderStyle': 'dashed',
-                            'borderRadius': '5px',
-                            'textAlign': 'center',
-                            'margin': '10px'
-                        },
-                        # Allow multiple files to be uploaded
-                        multiple=False
-                    ),
-                    html.Div(id='output-data-upload'),
-                    html.Div(id='dropdown-items'),
-                    html.Label('Plot Axis Scale'),
-                    html.Div(children=[
-                        dcc.RadioItems(
-                            id='scale-radio',
-                            options=[
-                                {'label': 'Linear', 'value': 'lin'},
-                                {'label': 'Log10', 'value': 'log'}
-                            ],
-                            value='lin',
-                            labelStyle={'display': 'block'}
-                        )]),
-                ])
-            ], width={"size": 2}
-
-            ),
-            # Figure plot
-            dbc.Col(
-                html.Div(className='six columns', children=[
-                    dcc.Graph(
-                        id='basic-interactions',
-                        clear_on_unhover=True,
-                        config={
-                            'toImageButtonOptions': {
-                                'format': 'svg',  # one of png, svg, jpeg, webp
-                                'filename': 'custom_image',
-                                'height': 800,
-                                'width': 800,
-                                'scale': 1  # Multiply title/legend/axis/canvas sizes by this factor
-                            }
-                        }
-                    )
-                ])
-            )
-            # Second row is for the hover data which only has a single, centered column
-        ]),
-        dbc.Row([
-            dbc.Col([
-                html.Div([
-                    dcc.Markdown("""
-                                    **Hover Data**
-                            
-                                    Mouse over values in the graph.
-                                """),
-                    html.Pre(id='hover-data')
-                ])
-            ], width={"size": 6, "offset": 3})
-        ])
-    ])
-    return layout
-
+files = {}
 
 app.layout = serve_layout
+
+# Create pie chart for every row in data frame
+colour_column = 'All_Pathways'
 
 
 # Parse uploaded data function
@@ -126,7 +50,7 @@ def parse_contents(contents, filename, date):
                 io.StringIO(decoded.decode('utf-8')))
         elif 'tsv' in filename:
             df = pd.read_csv(
-                io.StringIO(decoded.decode(('utf-8'))),
+                io.StringIO(decoded.decode('utf-8')),
                 sep='\t'
             )
         elif 'xls' in filename:
@@ -137,48 +61,43 @@ def parse_contents(contents, filename, date):
         return html.Div([
             'There was an error processing this file.'
         ])
+    df = df.replace(np.nan, 'None', regex=True)
+    files[filename] = df.to_dict()
 
 
 # Callback for handling uploaded data
-@app.callback(Output('dropdown-items', 'children'),
+# After data uploaded it is parsed into global df item and then populates the columns for dropdowns 
+@app.callback(Output('file-selector', 'children'),
               Input('upload-data', 'contents'),
               State('upload-data', 'filename'),
               State('upload-data', 'last_modified'))
 def update_output(list_of_contents, list_of_names, list_of_dates):
     if list_of_contents is not None:
-        parse_contents(list_of_contents, list_of_names, list_of_dates)
-    return [
-        html.Label('Positive X'),
-        dcc.Dropdown(
-            id="xpos-dropdown",
-            options=[{'label': name, 'value': name} for name in df.columns],
-            clearable=False,
-            searchable=False,
-        ),
-        html.Label('Positive Y'),
-        dcc.Dropdown(
-            id="ypos-dropdown",
-            options=[{'label': name, 'value': name} for name in df.columns],
-            clearable=False,
-            searchable=False,
-        ),
-        html.Label('Negative X'),
-        dcc.Dropdown(
-            id="xneg-dropdown",
-            options=[{'label': name, 'value': name} for name in df.columns],
-            clearable=False,
-            searchable=False,
-        ),
-        html.Label('Negative Y'),
-        dcc.Dropdown(
-            id="yneg-dropdown",
-            options=[{'label': name, 'value': name} for name in df.columns],
-            clearable=False,
-            searchable=False,
-        )
-    ]
+        children = [
+            parse_contents(c, n, d) for c, n, d in
+            zip(list_of_contents, list_of_names, list_of_dates)]
+
+        return (
+            dcc.Dropdown(
+                id='file-dropdown',
+                options=[{'label': file, 'value': file} for file in list_of_names],
+                clearable=False,
+                searchable=True,
+                placeholder='Please Select Your File'
+            ))
 
 
+@app.callback(Output('file-name', 'children'),
+              Output('dropdown-items', 'children'),
+              Input('file-dropdown', 'value'))
+def drop_down_updates(file_name):
+    global df
+    if file_name is not None:
+        df = pd.DataFrame.from_dict(files[file_name])
+    return update_dropdowns(file_name, df)
+
+
+# After selecting columns to plot, create those traces
 @app.callback(
     Output('basic-interactions', 'figure'),
     [Input('xpos-dropdown', 'value'),
@@ -186,45 +105,16 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
      Input('xneg-dropdown', 'value'),
      Input('yneg-dropdown', 'value'),
      Input('scale-radio', 'value'),
+     Input('name-dropdown', 'value'),
+     Input('colour-dropdown', 'value'),
      State('basic-interactions', 'figure')])
-def create_figure(xpos, ypos, xneg, yneg, scale, state):
+def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, state):
     global df
-    fig = go.Figure()
-    if None not in [xpos, ypos]:
-        fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
-                        y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
-                        mode='markers',
-                        marker_color='blue',
-                        text=df['Accession_Number'],
-                        name="Quadrant 1")
-    if None not in [xneg, ypos]:
-        fig.add_scatter(
-            x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x + 1) * -1),
-            y=df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1)),
-            mode='markers',
-            marker_color='blue',
-            text=df['Accession_Number'],
-            name="Quadrant 2")
-    if None not in [xneg, yneg]:
-        fig.add_scatter(
-            x=df[xneg].apply(lambda x: x * -1) if scale == 'lin' else df[xneg].apply(lambda x: math.log10(x + 1) * -1),
-            y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(lambda x: math.log10(x + 1) * -1),
-            mode='markers',
-            marker_color='blue',
-            text=df['Accession_Number'],
-            name="Quadrant 3")
-    if None not in [xpos, yneg]:
-        fig.add_scatter(x=df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1)),
-                        y=df[yneg].apply(lambda x: x * -1) if scale == 'lin' else df[yneg].apply(
-                            lambda x: math.log10(x + 1) * -1),
-                        mode='markers',
-                        marker_color='blue',
-                        text=df['Accession_Number'],
-                        name="Quadrant 4")
-    fig.update_layout(showlegend=False)
-    return fig
+    return generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by)
 
 
+
+# Format and display hover data in a table below the graph
 @app.callback(
     Output('hover-data', 'children'),
     [Input('basic-interactions', 'hoverData'),
@@ -232,23 +122,31 @@ def create_figure(xpos, ypos, xneg, yneg, scale, state):
      Input('ypos-dropdown', 'value'),
      Input('xneg-dropdown', 'value'),
      Input('yneg-dropdown', 'value'),
-     State('xpos-dropdown', 'value')]
-)
-def display_hover_data(hoverData, xpos, ypos, xneg, yneg, state):
+     Input('name-dropdown', 'value'),
+     Input('colour-dropdown', 'value'),
+     State('xpos-dropdown', 'value')])
+def display_hover_data(hoverData, xpos, ypos, xneg, yneg, row_name, pathways, state):
     if hoverData is not None:
         global df
-        name = hoverData['points'][0]['text']
-        path = df.loc[df['Accession_Number'] == name, 'All_Pathways'].values[0]
+        try:
+            name = hoverData['points'][0]['customdata'][1]
+        except IndexError:
+            name = hoverData['points'][0]['customdata'][0]
+        if pathways is not None:
+            path = df.loc[df[row_name] == name, pathways].values[0]
+            path = '\n\t\t'.join(x.strip() for x in path.split(','))
+        else:
+            path = "NA"
         output_dict = {}
         if xpos is not None:
-            output_dict[xpos] = df.loc[df['Accession_Number'] == name, xpos].values[0]
+            output_dict[xpos] = df.loc[df[row_name] == name, xpos].values[0]
         if ypos is not None:
-            output_dict[ypos] = df.loc[df['Accession_Number'] == name, ypos].values[0]
+            output_dict[ypos] = df.loc[df[row_name] == name, ypos].values[0]
         if xneg is not None:
-            output_dict[xneg] = df.loc[df['Accession_Number'] == name, xneg].values[0]
+            output_dict[xneg] = df.loc[df[row_name] == name, xneg].values[0]
         if yneg is not None:
-            output_dict[yneg] = df.loc[df['Accession_Number'] == name, yneg].values[0]
-        blah = f'Protein:\t{name}\nPathways:\t{path}\n' + ''.join(
+            output_dict[yneg] = df.loc[df[row_name] == name, yneg].values[0]
+        blah = f'Protein:\t{name}\nColoured by:\t{path}\n' + ''.join(
             f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
         return blah
 
