@@ -13,9 +13,11 @@ import io
 import pandas as pd
 from dash.dependencies import Input, Output, State
 from uiutils import update_dropdowns, serve_layout
-from plotutils import generate_plot
+from plotutils import generate_plot, generate_plot_data
 import numpy as np
 import plotly.graph_objects as go
+
+
 external_stylesheets = [dbc.themes.BOOTSTRAP]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
@@ -111,13 +113,14 @@ def drop_down_updates(file_name):
      State('basic-interactions', 'clickData')])
 def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, hoverData, state):
     global df
+    plot_data =generate_plot_data(df, xpos, ypos, xneg, yneg, scale, name, colour_by)
     fig1 = generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by)
     global fig
     fig = fig1
     for trace in fig1.data:
         trace["marker"]["size"] = 5
     if hoverData:
-        for trace in fig.data:
+        '''for trace in fig.data:
             sizes = []
             for i in range(0, len(trace['customdata'])):
                 if trace['customdata'][i][1 if colour_by is not None else 0] == \
@@ -125,7 +128,18 @@ def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, hoverData, sta
                     sizes.append(10)
                 else:
                     sizes.append(5)
-            trace['marker']['size'] = sizes
+            trace['marker']['size'] = sizes'''
+        xl = plot_data.loc[plot_data[name] == hoverData['points'][0]['customdata'][1 if colour_by is not None else 0]][
+                'x'].values.tolist()
+        xl.append(xl[0])
+        yl = plot_data.loc[plot_data[name] == hoverData['points'][0]['customdata'][1 if colour_by is not None else 0]][
+                'y'].values.tolist()
+        yl.append(yl[0])
+        fig1.add_trace(go.Scatter(x=xl,
+                                  y=yl,
+                                  fill="toself",
+                                  hoverinfo='skip'))
+        print(plot_data)
         #trace_index = hoverData["points"][0]["curveNumber"]
         #fig.data[trace_index]["marker"]["size"] = 10
         return fig1

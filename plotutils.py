@@ -18,9 +18,35 @@ palette = ['limegreen', 'firebrick', 'orangered', 'tomato', 'royalblue', 'seagre
            'cadetblue', 'goldenrod', 'saddlebrown', 'darkgreen', 'darkred', 'mediumpurple',
            'gray', 'darkmagenta', 'deeppink', 'darkblue']
 
+def generate_plot_data(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
+    global plot_data
+    fig = go.Figure()
+    fig.update_layout(height=700, width=700)
+    if None not in [xpos, ypos, xneg, yneg]:
+        names = np.concatenate([df[name].values] * 4)
+        colors = []
+        if colour_by is not None:
+            for item in df[colour_by]:
+                colors.append('<br>'.join([i.strip() for i in item.split(",")]))
+        else:
+            colors.append(None)
+        colors = np.concatenate([colors] * 4) if colour_by is not None else [None] * len(names)
 
+        xp = df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1))
+        yp = df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1))
+        xn = df[xneg].apply(lambda x: x * -1) if scale == 'lin' else \
+            df[xneg].apply(lambda x: math.log10(x + 1) * -1)
+        yn = df[yneg].apply(lambda x: x * -1) if scale == 'lin' else \
+            df[yneg].apply(lambda x: math.log10(x + 1) * -1)
+        data = {name: names,
+                colour_by: colors,
+                'x': np.concatenate([xp, xn, xn, xp]),
+                'y': np.concatenate([yp, yp, yn, yn])}
+        plot_data = pd.DataFrame(data=data)
+    return plot_data
 
 def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
+    global plot_data
     fig = go.Figure()
     fig.update_layout(height=700, width=700)
     if None not in [xpos, ypos, xneg, yneg]:
