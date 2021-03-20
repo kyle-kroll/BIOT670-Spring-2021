@@ -139,7 +139,6 @@ def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, hoverData, sta
                                   y=yl,
                                   fill="toself",
                                   hoverinfo='skip'))
-        print(plot_data)
         #trace_index = hoverData["points"][0]["curveNumber"]
         #fig.data[trace_index]["marker"]["size"] = 10
         return fig1
@@ -190,6 +189,41 @@ def display_hover_data(hoverData, xpos, ypos, xneg, yneg, row_name, pathways, st
             f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
         return blah
         #return(json.dumps(hoverData, indent=4))
+
+@app.callback(
+    Output('click-data', 'children'),
+    [Input('basic-interactions', 'clickData'),
+     Input('xpos-dropdown', 'value'),
+     Input('ypos-dropdown', 'value'),
+     Input('xneg-dropdown', 'value'),
+     Input('yneg-dropdown', 'value'),
+     Input('name-dropdown', 'value'),
+     Input('colour-dropdown', 'value'),
+     State('xpos-dropdown', 'value')])
+def display_click_data(clickData, xpos, ypos, xneg, yneg, row_name, pathways, state):
+    if clickData is not None:
+        global df
+        try:
+            name = clickData['points'][0]['customdata'][1]
+        except IndexError:
+            name = clickData['points'][0]['customdata'][0]
+        if pathways is not None:
+            path = df.loc[df[row_name] == name, pathways].values[0]
+            path = '\n\t\t'.join(x.strip() for x in path.split(','))
+        else:
+            path = "NA"
+        output_dict = {}
+        if xpos is not None:
+            output_dict[xpos] = df.loc[df[row_name] == name, xpos].values[0]
+        if ypos is not None:
+            output_dict[ypos] = df.loc[df[row_name] == name, ypos].values[0]
+        if xneg is not None:
+            output_dict[xneg] = df.loc[df[row_name] == name, xneg].values[0]
+        if yneg is not None:
+            output_dict[yneg] = df.loc[df[row_name] == name, yneg].values[0]
+        blah = f'Protein:\t{name}\nColoured by:\t{path}\n' + ''.join(
+            f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
+        return blah
 
 
 

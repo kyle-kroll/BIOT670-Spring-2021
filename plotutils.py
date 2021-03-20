@@ -17,6 +17,7 @@ palette = ['limegreen', 'firebrick', 'orangered', 'tomato', 'royalblue', 'seagre
            'palegreen', 'chocolate', 'red', 'gold', 'burlywood', 'mediumvioletred',
            'cadetblue', 'goldenrod', 'saddlebrown', 'darkgreen', 'darkred', 'mediumpurple',
            'gray', 'darkmagenta', 'deeppink', 'darkblue']
+plot_data = pd.DataFrame()
 
 def generate_plot_data(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
     global plot_data
@@ -82,14 +83,14 @@ def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
                               name: False
                           })
 
-        max_x = max(abs(plot_data['x']))
+        max_x = max(abs(plot_data['x'])) + 50
 
-        max_y = max(abs(plot_data['y']))
+        max_y = max(abs(plot_data['y'])) + 50
         max_axis = max(max_x, max_y)
         fig = go.Figure(data=fig1.data,
                         layout_xaxis_range=[max_axis * -1, max_axis],
                         layout_yaxis_range=[max_axis * -1, max_axis])
-        fig.update_layout(legend=dict(orientation='v'), clickmode="event+select")
+        fig.update_layout(legend=dict(orientation='v'), clickmode="event+select", height=700, width=700)
         fig.add_hline(y=0)
         fig.add_vline(x=0)
         fig.update_layout(
