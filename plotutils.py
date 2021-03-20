@@ -66,10 +66,11 @@ def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
             yaxis_title=f"\u2190{yneg}-----{ypos}\u2192",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)')
-        for trace in fig.data:
-            if "None" in trace['customdata'][0]:
-                trace['marker']['opacity'] = 0.2
-                trace['marker']['color'] = 'black'
+        if colour_by is not None:
+            for trace in fig.data:
+                if "None" in trace['customdata'][0]:
+                    trace['marker']['opacity'] = 0.2
+                    trace['marker']['color'] = 'black'
 
     return fig
 
