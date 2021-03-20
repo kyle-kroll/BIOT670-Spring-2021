@@ -83,9 +83,9 @@ def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
                               name: False
                           })
 
-        max_x = max(abs(plot_data['x'])) + 50
+        max_x = max(abs(plot_data['x']))
 
-        max_y = max(abs(plot_data['y'])) + 50
+        max_y = max(abs(plot_data['y']))
         max_axis = max(max_x, max_y)
         fig = go.Figure(data=fig1.data,
                         layout_xaxis_range=[max_axis * -1, max_axis],
