@@ -114,23 +114,23 @@ def serve_layout():
             dbc.Col(
 
                 html.Div(className='six columns', children=[
+                    dcc.Loading(
+                        dcc.Graph(
+                            id='basic-interactions',
+                            clear_on_unhover=True,
+                            config={
+                                'toImageButtonOptions': {
+                                    'format': 'svg',  # one of png, svg, jpeg, webp
+                                    'filename': 'custom_image',
+                                    'height': 800,
+                                    'width': 800,
+                                    'scale': 1  # Multiply title/legend/axis/canvas sizes by this factor
+                                },
 
-                    dcc.Graph(
-                        id='basic-interactions',
-                        clear_on_unhover=True,
-                        config={
-                            'toImageButtonOptions': {
-                                'format': 'svg',  # one of png, svg, jpeg, webp
-                                'filename': 'custom_image',
-                                'height': 800,
-                                'width': 800,
-                                'scale': 1  # Multiply title/legend/axis/canvas sizes by this factor
                             },
 
-                        },
-
-                    )
-                ]), width={"size": 6,},style={"height": "100vh"}
+                        ))
+                ]), width={"size": 6, }, style={"height": "100vh"}
             ),
             dbc.Col([
                 html.Div([
