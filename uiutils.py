@@ -146,6 +146,14 @@ def serve_layout():
                                         Mouse over values in the graph.
                                     """),
                     html.Pre(id='hover-data')
+                ]),
+                html.Div([
+                    dcc.Markdown("""
+                                            **Highlighted Data**
+
+                                            Click a point to highlight data.
+                                        """),
+                    html.Pre(id='click-data')
                 ])
             ], width={"size": 4})
             # Second row is for the hover data which only has a single, centered column
