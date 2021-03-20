@@ -106,14 +106,15 @@ def serve_layout():
                             value='lin',
                             labelStyle={'display': 'block'}
                         )]),
-                ])
+                ]),
+
             ], width={"size": 2}
 
             ),
             # Figure plot
             dbc.Col(
 
-                html.Div(className='six columns', children=[
+                html.Div(className='six columns', id='test-cont', children=[
                     dcc.Loading(
                         dcc.Graph(
                             id='basic-interactions',
@@ -130,10 +131,15 @@ def serve_layout():
                             },
 
                         ))
-                ]), width={"size": 6, }, style={"height": "100vh"}
+                ]), width={"size": 6, }, style={"height": "800px"}
             ),
             dbc.Col([
                 html.Div([
+                    html.Button('Refresh Plot', id='button',
+                                style={
+                                    'margin': '10px'
+                                }
+                                ),
                     dcc.Markdown("""
                                         **Hover Data**
 
