@@ -4,6 +4,7 @@ import plotly.express as px
 import math
 import pandas as pd
 
+
 '''
     Define the color palette that will be used.
     Author: Mary Mills
@@ -17,16 +18,47 @@ palette = ['limegreen', 'firebrick', 'orangered', 'tomato', 'royalblue', 'seagre
            'cadetblue', 'goldenrod', 'saddlebrown', 'darkgreen', 'darkred', 'mediumpurple',
            'gray', 'darkmagenta', 'deeppink', 'darkblue']
 
-
-def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
+def generate_plot_data(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
+    global plot_data
     fig = go.Figure()
-    fig.update_layout(height=600, width=600)
-    if colour_by is not None:
-        color_dict = dict(zip(np.unique(df[colour_by]), palette))
-    plot = False
+    fig.update_layout(height=700, width=700)
     if None not in [xpos, ypos, xneg, yneg]:
         names = np.concatenate([df[name].values] * 4)
-        colors = np.concatenate([df[colour_by].values] * 4) if colour_by is not None else [None] * len(names)
+        colors = []
+        if colour_by is not None:
+            for item in df[colour_by]:
+                colors.append('<br>'.join([i.strip() for i in item.split(",")]))
+        else:
+            colors.append(None)
+        colors = np.concatenate([colors] * 4) if colour_by is not None else [None] * len(names)
+
+        xp = df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1))
+        yp = df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1))
+        xn = df[xneg].apply(lambda x: x * -1) if scale == 'lin' else \
+            df[xneg].apply(lambda x: math.log10(x + 1) * -1)
+        yn = df[yneg].apply(lambda x: x * -1) if scale == 'lin' else \
+            df[yneg].apply(lambda x: math.log10(x + 1) * -1)
+        data = {name: names,
+                colour_by: colors,
+                'x': np.concatenate([xp, xn, xn, xp]),
+                'y': np.concatenate([yp, yp, yn, yn])}
+        plot_data = pd.DataFrame(data=data)
+    return plot_data
+
+def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
+    global plot_data
+    fig = go.Figure()
+    fig.update_layout(height=700, width=700)
+    if None not in [xpos, ypos, xneg, yneg]:
+        names = np.concatenate([df[name].values] * 4)
+        colors = []
+        if colour_by is not None:
+            for item in df[colour_by]:
+                colors.append('<br>'.join([i.strip() for i in item.split(",")]))
+        else:
+            colors.append(None)
+        colors = np.concatenate([colors] * 4) if colour_by is not None else [None] * len(names)
+
         xp = df[xpos] if scale == 'lin' else df[xpos].apply(lambda x: math.log10(x + 1))
         yp = df[ypos] if scale == 'lin' else df[ypos].apply(lambda x: math.log10(x + 1))
         xn = df[xneg].apply(lambda x: x * -1) if scale == 'lin' else \
@@ -57,7 +89,7 @@ def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
         fig = go.Figure(data=fig1.data,
                         layout_xaxis_range=[max_axis * -1, max_axis],
                         layout_yaxis_range=[max_axis * -1, max_axis])
-        fig.update_layout(legend=dict(orientation='h'), height=800, width=800)
+        fig.update_layout(legend=dict(orientation='v'), clickmode="event+select")
         fig.add_hline(y=0)
         fig.add_vline(x=0)
         fig.update_layout(
@@ -65,14 +97,15 @@ def generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by):
             xaxis_title=f"\u2190{xneg}-----{xpos}\u2192",
             yaxis_title=f"\u2190{yneg}-----{ypos}\u2192",
             paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)')
+            plot_bgcolor='rgba(0,0,0,0)',
+            showlegend=False)
         if colour_by is not None:
             for trace in fig.data:
                 if "None" in trace['customdata'][0]:
                     trace['marker']['opacity'] = 0.2
                     trace['marker']['color'] = 'black'
-
     return fig
+
 
 
     '''if None not in [xpos, ypos]:
