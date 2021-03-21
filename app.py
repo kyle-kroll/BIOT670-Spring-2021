@@ -17,7 +17,6 @@ from plotutils import generate_plot, generate_plot_data
 import numpy as np
 import plotly.graph_objects as go
 
-
 external_stylesheets = [dbc.themes.BOOTSTRAP]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
@@ -110,40 +109,44 @@ def drop_down_updates(file_name):
      Input('name-dropdown', 'value'),
      Input('colour-dropdown', 'value'),
      Input('basic-interactions', 'clickData'),
+     Input('legend-radio', 'value'),
+     Input('size_by', 'value'),
      State('basic-interactions', 'clickData')])
-def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, hoverData, state):
+def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, hoverData, showLegend, size_by, state):
     global df
-    plot_data =generate_plot_data(df, xpos, ypos, xneg, yneg, scale, name, colour_by)
+    plot_data = generate_plot_data(df, xpos, ypos, xneg, yneg, scale, name, colour_by)
     fig1 = generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by)
+    fig1.update_layout(showlegend=showLegend)
     global fig
     fig = fig1
-    for trace in fig1.data:
-        trace["marker"]["size"] = 5
-    if hoverData:
-        '''for trace in fig.data:
+    if size_by is not None:
+        for trace in fig.data:
             sizes = []
             for i in range(0, len(trace['customdata'])):
-                if trace['customdata'][i][1 if colour_by is not None else 0] == \
-                        hoverData['points'][0]['customdata'][1 if colour_by is not None else 0]:
-                    sizes.append(10)
+
+                if ', '.join([i.strip() for i in trace['customdata'][i][0].split("<br>")]) == size_by:
+                    sizes.append(20)
                 else:
                     sizes.append(5)
-            trace['marker']['size'] = sizes'''
+            trace['marker']['size'] = sizes
+    if hoverData:
+
         xl = plot_data.loc[plot_data[name] == hoverData['points'][0]['customdata'][1 if colour_by is not None else 0]][
-                'x'].values.tolist()
+            'x'].values.tolist()
         xl.append(xl[0])
         yl = plot_data.loc[plot_data[name] == hoverData['points'][0]['customdata'][1 if colour_by is not None else 0]][
-                'y'].values.tolist()
+            'y'].values.tolist()
         yl.append(yl[0])
         fig1.add_trace(go.Scatter(x=xl,
                                   y=yl,
                                   fill="toself",
                                   hoverinfo='skip'))
-        #trace_index = hoverData["points"][0]["curveNumber"]
-        #fig.data[trace_index]["marker"]["size"] = 10
+        # trace_index = hoverData["points"][0]["curveNumber"]
+        # fig.data[trace_index]["marker"]["size"] = 10
         return fig1
     else:
         return fig
+
 
 @app.callback(
     Output('basic-interactions', 'clickData'),
@@ -153,6 +156,8 @@ def reset_plot(clicks):
     if clicks > 0:
         clicks = 0
         return None
+
+
 # Format and display hover data in a table below the graph
 @app.callback(
     Output('hover-data', 'children'),
@@ -188,7 +193,8 @@ def display_hover_data(hoverData, xpos, ypos, xneg, yneg, row_name, pathways, st
         blah = f'Protein:\t{name}\nColoured by:\t{path}\n' + ''.join(
             f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
         return blah
-        #return(json.dumps(hoverData, indent=4))
+        # return(json.dumps(hoverData, indent=4))
+
 
 @app.callback(
     Output('click-data', 'children'),
@@ -226,6 +232,12 @@ def display_click_data(clickData, xpos, ypos, xneg, yneg, row_name, pathways, st
         return blah
 
 
+@app.callback(
+    Output('size_by', 'options'),
+    Input('colour-dropdown', 'value')
+)
+def update_sizeby_dropdown(size_selection):
+    return [{'label': name, 'value': name} for name in np.unique(df[size_selection])]
 
 
 if __name__ == '__main__':

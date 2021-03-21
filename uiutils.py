@@ -17,7 +17,7 @@ def update_dropdowns(file_name, df):
             dcc.Dropdown(
                 id='colour-dropdown',
                 options=[{'label': name, 'value': name} for name in df.columns],
-                clearable=False,
+                clearable=True,
                 searchable=True
             ),
             html.Label('Positive X'),
@@ -105,7 +105,18 @@ def serve_layout():
                             ],
                             value='lin',
                             labelStyle={'display': 'block'}
-                        )]),
+                        ),
+                        html.Label(html.B('Legend Options')),
+                        dcc.RadioItems(
+                            id='legend-radio',
+                            options=[
+                                {'label': 'Show Legend', 'value': True},
+                                {'label': 'Hide Legend', 'value': False}
+                            ],
+                            value=True,
+                            labelStyle={'display': 'block'}
+                        )
+                    ]),
                 ]),
 
             ], width={"size": 2}
@@ -140,6 +151,13 @@ def serve_layout():
                                     'margin': '10px'
                                 }
                                 ),
+                    html.Br(),
+                    html.Label('Size By'),
+                    dcc.Dropdown(
+                        id="size_by",
+                        clearable=True,
+                        searchable=True,
+                    ),
                     dcc.Markdown("""
                                         **Hover Data**
 
@@ -147,6 +165,7 @@ def serve_layout():
                                     """),
                     html.Pre(id='hover-data')
                 ]),
+
                 html.Div([
                     dcc.Markdown("""
                                             **Highlighted Data**
