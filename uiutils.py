@@ -17,7 +17,7 @@ def update_dropdowns(file_name, df):
             dcc.Dropdown(
                 id='colour-dropdown',
                 options=[{'label': name, 'value': name} for name in df.columns],
-                clearable=False,
+                clearable=True,
                 searchable=True
             ),
             html.Label('Positive X'),
@@ -105,41 +105,74 @@ def serve_layout():
                             ],
                             value='lin',
                             labelStyle={'display': 'block'}
-                        )]),
-                ])
+                        ),
+                        html.Label(html.B('Legend Options')),
+                        dcc.RadioItems(
+                            id='legend-radio',
+                            options=[
+                                {'label': 'Show Legend', 'value': True},
+                                {'label': 'Hide Legend', 'value': False}
+                            ],
+                            value=True,
+                            labelStyle={'display': 'block'}
+                        )
+                    ]),
+                ]),
+
             ], width={"size": 2}
 
             ),
             # Figure plot
             dbc.Col(
 
-                html.Div(className='six columns', children=[
+                html.Div(className='six columns', id='test-cont', children=[
+                    dcc.Loading(
+                        dcc.Graph(
+                            id='basic-interactions',
+                            clear_on_unhover=True,
+                            config={
+                                'toImageButtonOptions': {
+                                    'format': 'svg',  # one of png, svg, jpeg, webp
+                                    'filename': 'custom_image',
+                                    'height': 800,
+                                    'width': 800,
+                                    'scale': 1  # Multiply title/legend/axis/canvas sizes by this factor
+                                },
 
-                    dcc.Graph(
-                        id='basic-interactions',
-                        clear_on_unhover=True,
-                        config={
-                            'toImageButtonOptions': {
-                                'format': 'svg',  # one of png, svg, jpeg, webp
-                                'filename': 'custom_image',
-                                'height': 800,
-                                'width': 800,
-                                'scale': 1  # Multiply title/legend/axis/canvas sizes by this factor
                             },
 
-                        },
-
-                    )
-                ]), width={"size": 6,},style={"height": "100vh"}
+                        ))
+                ]), width={"size": 6, }, style={"height": "800px"}
             ),
             dbc.Col([
                 html.Div([
+                    html.Button('Refresh Plot', id='button',
+                                style={
+                                    'margin': '10px'
+                                }
+                                ),
+                    html.Br(),
+                    html.Label('Size By'),
+                    dcc.Dropdown(
+                        id="size_by",
+                        clearable=True,
+                        searchable=True,
+                    ),
                     dcc.Markdown("""
                                         **Hover Data**
 
                                         Mouse over values in the graph.
                                     """),
                     html.Pre(id='hover-data')
+                ]),
+
+                html.Div([
+                    dcc.Markdown("""
+                                            **Highlighted Data**
+
+                                            Click a point to highlight data.
+                                        """),
+                    html.Pre(id='click-data')
                 ])
             ], width={"size": 4})
             # Second row is for the hover data which only has a single, centered column
