@@ -6,14 +6,14 @@ import dash_bootstrap_components as dbc
 def update_dropdowns(file_name, df):
     return (
         [html.Label(f"File: {file_name}"), (
-            html.Label('Row names'),
+            html.Label('Identifier:'),
             dcc.Dropdown(
                 id='name-dropdown',
                 options=[{'label': name, 'value': name} for name in df.columns],
                 clearable=False,
                 searchable=True
             ),
-            html.Label('Color by:'),
+            html.Label('Classifier:'),
             dcc.Dropdown(
                 id='colour-dropdown',
                 options=[{'label': name, 'value': name} for name in df.columns],
@@ -95,7 +95,7 @@ def serve_layout():
                     html.Div(id='output-data-upload'),
 
                     html.Div(id='dropdown-items'),
-                    html.Label('Plot Axis Scale'),
+                    html.Label(html.B('Axis Scale')),
                     html.Div(children=[
                         dcc.RadioItems(
                             id='scale-radio',
@@ -113,7 +113,7 @@ def serve_layout():
                                 {'label': 'Show Legend', 'value': True},
                                 {'label': 'Hide Legend', 'value': False}
                             ],
-                            value=True,
+                            value=False,
                             labelStyle={'display': 'block'}
                         )
                     ]),
@@ -152,7 +152,7 @@ def serve_layout():
                                 }
                                 ),
                     html.Br(),
-                    html.Label('Size By'),
+                    html.Label('Highlight Classifier:'),
                     dcc.Dropdown(
                         id="size_by",
                         clearable=True,
