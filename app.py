@@ -88,6 +88,7 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
             ))
 
 
+# After the user selects a dataset after uploading, populate the various dropdowns
 @app.callback(Output('file-name', 'children'),
               Output('dropdown-items', 'children'),
               Input('file-dropdown', 'value'))
@@ -112,8 +113,10 @@ def drop_down_updates(file_name):
      Input('legend-radio', 'value'),
      Input('size_by', 'value'),
      State('basic-interactions', 'clickData')])
-def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, hoverData, showLegend, size_by, state):
+def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, clickData, showLegend, size_by, state):
     global df
+    # The plot_data object should be passed to generate_plot but did not have time to modify that
+    # plot_data is used for drawing the trace around clicked points
     plot_data = generate_plot_data(df, xpos, ypos, xneg, yneg, scale, name, colour_by)
     fig1 = generate_plot(df, xpos, ypos, xneg, yneg, scale, name, colour_by)
     fig1.update_layout(showlegend=showLegend)
@@ -122,6 +125,7 @@ def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, hoverData, sho
     if size_by is not None:
         for trace in fig.data:
             sizes = []
+            # Adjusts the legends so that they wrap the text when multiple items are in the classifier
             for i in range(0, len(trace['customdata'])):
 
                 if ', '.join([i.strip() for i in trace['customdata'][i][0].split("<br>")]) == size_by:
@@ -129,25 +133,26 @@ def create_figure(xpos, ypos, xneg, yneg, scale, name, colour_by, hoverData, sho
                 else:
                     sizes.append(5)
             trace['marker']['size'] = sizes
-    if hoverData:
-
-        xl = plot_data.loc[plot_data[name] == hoverData['points'][0]['customdata'][1 if colour_by is not None else 0]][
+    # If the user has clicked a point, draw lines connecting each quadrant for that point
+    if clickData:
+        xl = plot_data.loc[plot_data[name] == clickData['points'][0]['customdata'][1 if colour_by is not None else 0]][
             'x'].values.tolist()
         xl.append(xl[0])
-        yl = plot_data.loc[plot_data[name] == hoverData['points'][0]['customdata'][1 if colour_by is not None else 0]][
+        yl = plot_data.loc[plot_data[name] == clickData['points'][0]['customdata'][1 if colour_by is not None else 0]][
             'y'].values.tolist()
         yl.append(yl[0])
         fig1.add_trace(go.Scatter(x=xl,
                                   y=yl,
-                                  fill="toself",
-                                  hoverinfo='skip'))
-        # trace_index = hoverData["points"][0]["curveNumber"]
-        # fig.data[trace_index]["marker"]["size"] = 10
+                                  fill="none",
+                                  hoverinfo="none"))
+
         return fig1
     else:
         return fig
 
 
+# I could not figure out a better way to handle resetting the clickData trace
+# so I implemented a simple method that just clears that information
 @app.callback(
     Output('basic-interactions', 'clickData'),
     Input('button', 'n_clicks')
@@ -190,12 +195,13 @@ def display_hover_data(hoverData, xpos, ypos, xneg, yneg, row_name, pathways, st
             output_dict[xneg] = df.loc[df[row_name] == name, xneg].values[0]
         if yneg is not None:
             output_dict[yneg] = df.loc[df[row_name] == name, yneg].values[0]
-        blah = f'Protein:\t{name}\nColoured by:\t{path}\n' + ''.join(
+        hover_output = f'Protein:\t{name}\nColoured by:\t{path}\n' + ''.join(
             f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
-        return blah
-        # return(json.dumps(hoverData, indent=4))
+        return hover_output
 
 
+# Nearly identical to the hoverData callback except now we will be displaying
+# data for the point that was clicked on
 @app.callback(
     Output('click-data', 'children'),
     [Input('basic-interactions', 'clickData'),
@@ -227,11 +233,12 @@ def display_click_data(clickData, xpos, ypos, xneg, yneg, row_name, pathways, st
             output_dict[xneg] = df.loc[df[row_name] == name, xneg].values[0]
         if yneg is not None:
             output_dict[yneg] = df.loc[df[row_name] == name, yneg].values[0]
-        blah = f'Protein:\t{name}\nColoured by:\t{path}\n' + ''.join(
+        click_output = f'Protein:\t{name}\nColoured by:\t{path}\n' + ''.join(
             f'{k}:\t{output_dict[k]}\n' for k in output_dict.keys())
-        return blah
+        return click_output
 
 
+# Populate the size_by dropdown which will increase points that match the selected classifier
 @app.callback(
     Output('size_by', 'options'),
     Input('colour-dropdown', 'value')
